@@ -973,6 +973,9 @@ const FlowPreview = ({ steps, onClose }) => {
   const [waitingForAnimation, setWaitingForAnimation] = useState(null);
   const [idleHelpActive, setIdleHelpActive] = useState(false);
   const [addedItems, setAddedItems] = useState(new Map());
+  const [clickedItems, setClickedItems] = useState(new Set());
+  const [mergeAnimations, setMergeAnimations] = useState(new Map());
+  const [generationEffects, setGenerationEffects] = useState(new Map());
   
   // Safety checks for steps array
   if (!steps || !Array.isArray(steps) || steps.length === 0) {
@@ -1012,6 +1015,9 @@ const FlowPreview = ({ steps, onClose }) => {
     setShowCutscene(null);
     setWaitingForAnimation(null);
     setIdleHelpActive(false);
+    setClickedItems(new Set());
+    setMergeAnimations(new Map());
+    setGenerationEffects(new Map());
     
     if (currentStep && Array.isArray(currentStep.actions) && currentStep.actions.length > 0) {
       // Process actions with proper delays
@@ -1278,7 +1284,59 @@ const FlowPreview = ({ steps, onClose }) => {
     }
   };
   
-  const handleClick = (target) => {
+  const handleClick = (target, itemData = null) => {
+    // Visual feedback for click
+    if (target && target !== 'dialog' && target !== 'popup') {
+      setClickedItems(prev => new Set([...prev, target]));
+      setTimeout(() => {
+        setClickedItems(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(target);
+          return newSet;
+        });
+      }, 300);
+    }
+    
+    // Handle generator click - show generation effect
+    if (itemData?.isGenerator) {
+      const genKey = `gen-${itemData.x}-${itemData.y}`;
+      setGenerationEffects(prev => new Map([...prev, [genKey, Date.now()]]));
+      setTimeout(() => {
+        setGenerationEffects(prev => {
+          const newMap = new Map(prev);
+          newMap.delete(genKey);
+          return newMap;
+        });
+      }, 1000);
+    }
+    
+    // Handle item click - check for merge potential
+    if (itemData?.configured && !itemData.isGenerator) {
+      const itemKey = `${itemData.x}-${itemData.y}`;
+      // Check if there's a similar item nearby that could merge
+      const nearbyItems = boardItems.filter(i => 
+        i.configured && 
+        !i.isGenerator && 
+        i.configured.itemId === itemData.configured.itemId &&
+        i.id !== itemKey &&
+        Math.abs(i.x - itemData.x) <= 1 &&
+        Math.abs(i.y - itemData.y) <= 1
+      );
+      
+      if (nearbyItems.length > 0) {
+        // Show merge animation
+        const mergeKey = `merge-${itemKey}`;
+        setMergeAnimations(prev => new Map([...prev, [mergeKey, Date.now()]]));
+        setTimeout(() => {
+          setMergeAnimations(prev => {
+            const newMap = new Map(prev);
+            newMap.delete(mergeKey);
+            return newMap;
+          });
+        }, 800);
+      }
+    }
+    
     // Check if current step has completion condition for this target
     const completionConditions = currentStep?.completionConditions || [];
     
@@ -1320,6 +1378,9 @@ const FlowPreview = ({ steps, onClose }) => {
       setHighlightedElement(null);
       setShaded(false);
       setWaitingForAnimation(null);
+      setClickedItems(new Set());
+      setMergeAnimations(new Map());
+      setGenerationEffects(new Map());
       
       // Move to next step
       setTimeout(() => {
@@ -1495,44 +1556,91 @@ const FlowPreview = ({ steps, onClose }) => {
                                   lockedElements.has('BoardItemDrag') ||
                                   (item.isGenerator && lockedElements.has('BoardActiveGenerator'));
                   
+                  // Check if item was clicked
+                  const wasClicked = clickedItems.has(item.id);
+                  
+                  // Check for merge animation
+                  const mergeKey = `merge-${item.id}`;
+                  const isMerging = mergeAnimations.has(mergeKey);
+                  
+                  // Check for generation effect
+                  const genKey = `gen-${item.x}-${item.y}`;
+                  const isGenerating = generationEffects.has(genKey);
+                  
                   return (
                     <div
                       key={item.id}
-                      onClick={() => handleClick(item.id)}
+                      onClick={() => handleClick(item.id, item)}
                       className={`
                         w-16 h-16 border-2 rounded-lg flex flex-col items-center justify-center transition-all relative
-                        ${isLocked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-gray-100 hover:scale-105'}
-                        ${isHighlighted ? 'border-yellow-400 bg-yellow-100 ring-4 ring-yellow-300 animate-pulse' : 'border-gray-200 bg-gray-50'}
-                        ${showFinger ? 'ring-4 ring-blue-300 z-20 scale-110' : ''}
+                        ${isLocked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-gray-100 hover:scale-105 active:scale-95'}
+                        ${isHighlighted ? 'border-yellow-400 bg-yellow-100 ring-4 ring-yellow-300 animate-pulse shadow-lg shadow-yellow-300/50' : 'border-gray-200 bg-gray-50'}
+                        ${showFinger ? 'ring-4 ring-blue-300 z-20 scale-110 shadow-lg shadow-blue-300/50' : ''}
                         ${configuredItem ? 'bg-blue-50 border-blue-300' : ''}
                         ${configuredItem?.isAdded ? 'bg-green-50 border-green-300' : ''}
                         ${shaded && !isHighlighted && !showFinger ? 'opacity-50' : ''}
+                        ${wasClicked ? 'ring-4 ring-green-400 scale-105 bg-green-100 animate-ping' : ''}
+                        ${isMerging ? 'ring-4 ring-purple-400 scale-110 bg-purple-100 animate-pulse' : ''}
+                        ${isGenerating ? 'ring-4 ring-orange-400 scale-110 bg-orange-100 animate-bounce' : ''}
                       `}
                     >
                       {/* Generator icon */}
                       {item.isGenerator && (
-                        <div className={`text-2xl ${isHighlighted ? 'animate-pulse' : ''}`}>⚙️</div>
+                        <div className={`text-2xl relative ${isHighlighted ? 'animate-pulse' : ''} ${isGenerating ? 'animate-spin' : ''}`}>
+                          ⚙️
+                          {isGenerating && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="text-lg animate-bounce">✨</div>
+                            </div>
+                          )}
+                        </div>
                       )}
                       
                       {/* Configured item display */}
                       {configuredItem && !item.isGenerator && (
                         <>
-                          <div className={`text-xs font-bold ${configuredItem.isAdded ? 'text-green-600' : 'text-blue-600'}`}>
+                          <div className={`text-xs font-bold ${configuredItem.isAdded ? 'text-green-600' : 'text-blue-600'} ${isMerging ? 'text-purple-600 animate-pulse' : ''}`}>
                             ID: {configuredItem.itemId}
                             {configuredItem.isAdded && <span className="ml-1">✨</span>}
+                            {isMerging && <span className="ml-1 animate-bounce">💫</span>}
                           </div>
-                          <div className={`text-[10px] ${configuredItem.isAdded ? 'text-green-400' : 'text-blue-400'}`}>
+                          <div className={`text-[10px] ${configuredItem.isAdded ? 'text-green-400' : 'text-blue-400'} ${isMerging ? 'text-purple-400' : ''}`}>
                             ({configuredItem.position.x},{configuredItem.position.y})
                           </div>
+                          {wasClicked && (
+                            <div className="absolute -top-2 -right-2 bg-green-500 text-white text-[10px] px-1.5 py-0.5 rounded-full animate-ping">
+                              ✓
+                            </div>
+                          )}
                         </>
                       )}
                       
                       {/* Finger animation */}
                       {showFinger && fingerAnimation && (
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                          <div className="text-4xl animate-bounce">👆</div>
-                          <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
-                            {fingerAnimation.tooltipType === 'Tap' ? 'Tap here' : fingerAnimation.tooltipType === 'Info' ? 'Info' : fingerAnimation.tooltipType || 'Tap here'}
+                          <div className={`text-4xl ${fingerAnimation.tooltipType === 'Finger' ? 'animate-finger-bounce' : 'animate-bounce'}`}>👆</div>
+                          <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg z-20">
+                            {fingerAnimation.tooltipType === 'Finger' || fingerAnimation.tooltipType === 'Tap' ? 'Tap here' : fingerAnimation.tooltipType === 'Info' ? 'Info' : fingerAnimation.tooltipType || 'Tap here'}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Merge effect overlay */}
+                      {isMerging && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                          <div className="text-3xl animate-pulse">💫</div>
+                          <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-purple-500 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap shadow-lg">
+                            Merging!
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Generation effect overlay */}
+                      {isGenerating && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                          <div className="text-2xl animate-spin">✨</div>
+                          <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap shadow-lg">
+                            Generating!
                           </div>
                         </div>
                       )}
