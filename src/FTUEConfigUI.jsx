@@ -277,14 +277,17 @@ const StepContextModal = ({ onClose, onSelect }) => {
   ];
   
   const handleContinue = () => {
-    if (selectedContext && contextValue) {
+    const trimmedValue = contextValue?.toString().trim() || '';
+    if (selectedContext && trimmedValue) {
       onSelect({
         contextType: selectedContext,
-        contextValue: contextValue
+        contextValue: trimmedValue
       });
       onClose();
     }
   };
+  
+  const canContinue = selectedContext && contextValue?.toString().trim();
   
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
@@ -390,11 +393,19 @@ const StepContextModal = ({ onClose, onSelect }) => {
           )}
         </div>
         <div className="p-4 border-t bg-gray-50 flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-lg">Cancel</button>
+          <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-lg transition-colors">Cancel</button>
           <button
-            onClick={handleContinue}
-            disabled={!selectedContext || !contextValue}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleContinue();
+            }}
+            disabled={!canContinue}
+            className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-all ${
+              canContinue 
+                ? 'bg-blue-500 text-white hover:bg-blue-600 cursor-pointer' 
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
           >
             <ArrowRight size={16} />Continue to Actions
           </button>
