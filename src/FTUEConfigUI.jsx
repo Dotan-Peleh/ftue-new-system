@@ -290,13 +290,13 @@ const StepContextModal = ({ onClose, onSelect }) => {
   const canContinue = selectedContext && contextValue?.toString().trim() && contextValue !== '';
   
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={(e) => {
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={(e) => {
       // Only close if clicking directly on the backdrop, not on child elements
       if (e.target === e.currentTarget) {
         onClose();
       }
     }}>
-      <div className="bg-white rounded-xl shadow-xl w-[500px] max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-[500px] h-[90vh] max-h-[600px] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* Fixed Header */}
         <div className="p-4 border-b flex items-center justify-between flex-shrink-0 bg-white">
           <h3 className="font-semibold text-lg">Select Step Context</h3>
@@ -304,7 +304,7 @@ const StepContextModal = ({ onClose, onSelect }) => {
         </div>
         
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3">What is this step about?</label>
             <div className="grid grid-cols-2 gap-3">
