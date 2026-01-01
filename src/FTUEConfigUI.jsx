@@ -287,10 +287,15 @@ const StepContextModal = ({ onClose, onSelect }) => {
     }
   };
   
-  const canContinue = selectedContext && contextValue?.toString().trim();
+  const canContinue = selectedContext && contextValue?.toString().trim() && contextValue !== '';
   
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={(e) => {
+      // Only close if clicking directly on the backdrop, not on child elements
+      if (e.target === e.currentTarget) {
+        onClose();
+      }
+    }}>
       <div className="bg-white rounded-xl shadow-xl w-[500px] max-h-[80vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="p-4 border-b flex items-center justify-between">
           <h3 className="font-semibold text-lg">Select Step Context</h3>
@@ -328,12 +333,21 @@ const StepContextModal = ({ onClose, onSelect }) => {
                   <label className="block text-xs font-medium text-gray-500 mb-1">Select Feature</label>
                   <select
                     value={contextValue}
-                    onChange={(e) => setContextValue(e.target.value)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // Don't allow "None" or empty string as a valid selection
+                      if (value && value !== 'None') {
+                        setContextValue(value);
+                      } else {
+                        setContextValue('');
+                      }
+                    }}
+                    onClick={(e) => e.stopPropagation()}
                     className="w-full px-3 py-2 border rounded-lg"
                   >
                     <option value="">— Select Feature —</option>
-                    {features.map(feature => (
-                      <option key={feature} value={feature === 'None' ? '' : feature}>{feature}</option>
+                    {features.filter(f => f !== 'None').map(feature => (
+                      <option key={feature} value={feature}>{feature}</option>
                     ))}
                   </select>
                 </div>
