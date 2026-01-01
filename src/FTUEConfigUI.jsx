@@ -1919,14 +1919,551 @@ const actionTypes = [
 
 export default function FTUEConfigUI() {
   const [view, setView] = useState('dashboard');
-  const [flows, setFlows] = useState([
-    { id: 'onboarding_core_loop', name: 'Core Loop Introduction', legacy: 1, steps: 14, status: 'active', priority: 100, modified: '2 hours ago' },
-    { id: 'second_scapes_task', name: 'Second Scapes Task', legacy: 2, steps: 21, status: 'active', priority: 95, modified: '1 day ago' },
-    { id: 'first_chapter_complete', name: 'First Chapter Completion', legacy: 3, steps: 12, status: 'active', priority: 90, modified: '3 days ago' },
-    { id: 'flowers_intro', name: 'Flowers Feature Intro', legacy: 13, steps: 4, status: 'active', priority: 50, modified: '1 week ago' },
-    { id: 'recipes_intro', name: 'Recipes Feature Intro', legacy: 14, steps: 7, status: 'draft', priority: 50, modified: 'Just now' },
-    { id: 'mode_2_unlock', name: 'Mode 2 Unlock', legacy: 10, steps: 7, status: 'inactive', priority: 40, modified: '2 weeks ago' }
-  ]);
+  // Helper function to create template steps for flows
+  const createTemplateSteps = (flowId, stepCount) => {
+    const templates = {
+      'onboarding_core_loop': [
+        {
+          id: 'step_1',
+          name: 'Welcome Dialog',
+          legacy: 0,
+          type: 'ui',
+          context: { contextType: 'chapter', contextValue: '1' },
+          actions: [
+            {
+              Type: 'LockUIElement',
+              Target: 'All',
+              TargetDialog: null,
+              TargetBoardItem: null
+            },
+            {
+              Type: 'ShowDialog',
+              Target: 'Null',
+              TargetDialog: { DialogId: 1001199 }
+            },
+            {
+              Type: 'FadeIn',
+              Target: 'BoardScreen',
+              TypeFade: null
+            }
+          ],
+          completionConditions: [{ type: 'dialog_closed', value: 'dialog' }]
+        },
+        {
+          id: 'step_2',
+          name: 'Show Board Generator Tooltip',
+          legacy: 1,
+          type: 'ui',
+          context: { contextType: 'feature', contextValue: 'Disco' },
+          actions: [
+            {
+              Type: 'ShowTooltip',
+              Target: 'BoardActiveGenerator',
+              TypeShowTooltip: {
+                Type: 'Finger',
+                InfoMessagePosition: 'Top'
+              },
+              TargetBoardItem: null,
+              TargetBoardTask: null
+            },
+            {
+              Type: 'HighlightElement',
+              Target: 'BoardActiveGenerator',
+              TypeHighlight: { Type: 'Shader', IsCommonAmongSteps: false }
+            }
+          ],
+          completionConditions: [{ type: 'user_action', value: 'click' }]
+        },
+        {
+          id: 'step_3',
+          name: 'Add Item to Board',
+          legacy: 2,
+          type: 'game',
+          context: { contextType: 'item', contextValue: '399' },
+          actions: [
+            {
+              Type: 'AddItemOnBoard',
+              Target: 'BoardItem',
+              TargetBoardItem: {
+                ItemId: 399,
+                Position: { x: 3, y: 3 }
+              }
+            },
+            {
+              Type: 'ShowTooltip',
+              Target: 'BoardItem',
+              TypeShowTooltip: {
+                Type: 'Finger',
+                InfoMessagePosition: 'Top'
+              },
+              TargetBoardItem: {
+                ItemId: 399,
+                Position: { x: 3, y: 3 }
+              }
+            },
+            {
+              Type: 'HighlightElement',
+              Target: 'BoardItem',
+              TypeHighlight: { Type: 'Shader', IsCommonAmongSteps: false },
+              TargetBoardItem: {
+                ItemId: 399,
+                Position: { x: 3, y: 3 }
+              }
+            }
+          ],
+          completionConditions: [{ type: 'item_on_board', value: 'BoardItem' }]
+        },
+        {
+          id: 'step_4',
+          name: 'Wait for Board Task Ready',
+          legacy: 3,
+          type: 'game',
+          context: { contextType: 'scape_task', contextValue: '1' },
+          actions: [
+            {
+              Type: 'WaitForBoardTaskReady',
+              Target: 'BoardTask',
+              TargetBoardTask: { BoardTaskId: 0 }
+            }
+          ],
+          completionConditions: [{ type: 'user_action', value: 'click' }]
+        },
+        {
+          id: 'step_5',
+          name: 'Show Character Tooltip',
+          legacy: 4,
+          type: 'ui',
+          context: { contextType: 'chapter', contextValue: '1' },
+          actions: [
+            {
+              Type: 'ShowTooltip',
+              Target: 'Character',
+              TypeShowTooltip: {
+                Type: 'Info',
+                InfoMessagePosition: 'Bottom'
+              },
+              TargetCharacter: { CharacterId: 'Chris' }
+            }
+          ],
+          completionConditions: [{ type: 'user_action', value: 'click' }]
+        },
+        {
+          id: 'step_6',
+          name: 'Unlock UI Elements',
+          legacy: 5,
+          type: 'ui',
+          context: { contextType: 'feature', contextValue: 'Cascade' },
+          actions: [
+            {
+              Type: 'UnLockUIElement',
+              Target: 'All',
+              TargetDialog: null
+            }
+          ],
+          completionConditions: [{ type: 'user_action', value: 'click' }]
+        }
+      ],
+      'second_scapes_task': [
+        {
+          id: 'step_1',
+          name: 'Scape Task Introduction',
+          legacy: 0,
+          type: 'ui',
+          context: { contextType: 'scape_task', contextValue: '2' },
+          actions: [
+            {
+              Type: 'LockUIElement',
+              Target: 'All',
+              TargetDialog: null
+            },
+            {
+              Type: 'ShowDialog',
+              Target: 'Null',
+              TargetDialog: { DialogId: 10013 }
+            },
+            {
+              Type: 'FadeIn',
+              Target: 'BoardScreen',
+              TypeFade: null
+            }
+          ],
+          completionConditions: [{ type: 'dialog_closed', value: 'dialog' }]
+        },
+        {
+          id: 'step_2',
+          name: 'Highlight Scape Task',
+          legacy: 1,
+          type: 'ui',
+          context: { contextType: 'scape_task', contextValue: '2' },
+          actions: [
+            {
+              Type: 'HighlightElement',
+              Target: 'ScapeTask',
+              TypeHighlight: { Type: 'Shader', IsCommonAmongSteps: false },
+              TargetScapeTask: { ScapeTaskId: 2 }
+            },
+            {
+              Type: 'ShowTooltip',
+              Target: 'ScapeTask',
+              TypeShowTooltip: {
+                Type: 'Finger',
+                InfoMessagePosition: 'Top'
+              },
+              TargetScapeTask: { ScapeTaskId: 2 }
+            }
+          ],
+          completionConditions: [{ type: 'user_action', value: 'click' }]
+        },
+        {
+          id: 'step_3',
+          name: 'Show Scape Task Map Tooltip',
+          legacy: 2,
+          type: 'ui',
+          context: { contextType: 'scape_task', contextValue: '2' },
+          actions: [
+            {
+              Type: 'ShowTooltip',
+              Target: 'ScapeTaskMapTooltip',
+              TypeShowTooltip: {
+                Type: 'Info',
+                InfoMessagePosition: 'Center'
+              },
+              TargetScapeTask: { ScapeTaskId: 2 }
+            }
+          ],
+          completionConditions: [{ type: 'user_action', value: 'click' }]
+        }
+      ],
+      'first_chapter_complete': [
+        {
+          id: 'step_1',
+          name: 'Chapter Completion Celebration',
+          legacy: 0,
+          type: 'ui',
+          context: { contextType: 'chapter', contextValue: '1' },
+          actions: [
+            {
+              Type: 'LockUIElement',
+              Target: 'All',
+              TargetDialog: null
+            },
+            {
+              Type: 'ShowCutscene',
+              Target: 'Null',
+              TypeShowCutScene: { CutsceneId: 'Chapter1Complete' }
+            },
+            {
+              Type: 'ShowDialog',
+              Target: 'Null',
+              TargetDialog: { DialogId: 10014 }
+            },
+            {
+              Type: 'FadeIn',
+              Target: 'BoardScreen',
+              TypeFade: null
+            }
+          ],
+          completionConditions: [{ type: 'dialog_closed', value: 'dialog' }]
+        },
+        {
+          id: 'step_2',
+          name: 'Wait for Cutscene Complete',
+          legacy: 1,
+          type: 'flow',
+          context: { contextType: 'chapter', contextValue: '1' },
+          actions: [
+            {
+              Type: 'WaitForAnimationComplete',
+              Target: 'Null',
+              TargetAwaitedAnimation: {
+                AwaitedAnimation: 'Chapter1Complete',
+                AwaitComplete: true
+              }
+            }
+          ],
+          completionConditions: [{ type: 'user_action', value: 'click' }]
+        },
+        {
+          id: 'step_3',
+          name: 'Unlock UI After Celebration',
+          legacy: 2,
+          type: 'ui',
+          context: { contextType: 'chapter', contextValue: '1' },
+          actions: [
+            {
+              Type: 'UnLockUIElement',
+              Target: 'All',
+              TargetDialog: null
+            }
+          ],
+          completionConditions: [{ type: 'user_action', value: 'click' }]
+        }
+      ],
+      'flowers_intro': [
+        {
+          id: 'step_1',
+          name: 'Flowers Feature Discovery',
+          legacy: 0,
+          type: 'ui',
+          context: { contextType: 'feature', contextValue: 'Flowers' },
+          actions: [
+            {
+              Type: 'LockUIElement',
+              Target: 'All',
+              TargetDialog: null
+            },
+            {
+              Type: 'ShowDialog',
+              Target: 'Null',
+              TargetDialog: { DialogId: 10015 }
+            },
+            {
+              Type: 'HighlightElement',
+              Target: 'BoardItem',
+              TypeHighlight: { Type: 'Shader', IsCommonAmongSteps: false },
+              TargetBoardItem: {
+                ItemId: 504,
+                Position: { x: 2, y: 2 }
+              }
+            }
+          ],
+          completionConditions: [{ type: 'dialog_closed', value: 'dialog' }]
+        },
+        {
+          id: 'step_2',
+          name: 'Show Flowers Generator',
+          legacy: 1,
+          type: 'ui',
+          context: { contextType: 'feature', contextValue: 'Flowers' },
+          actions: [
+            {
+              Type: 'ShowTooltip',
+              Target: 'BoardActiveGenerator',
+              TypeShowTooltip: {
+                Type: 'Finger',
+                InfoMessagePosition: 'Top'
+              },
+              TargetBoardItem: null
+            },
+            {
+              Type: 'HighlightElement',
+              Target: 'BoardActiveGenerator',
+              TypeHighlight: { Type: 'Shader', IsCommonAmongSteps: false }
+            }
+          ],
+          completionConditions: [{ type: 'user_action', value: 'click' }]
+        },
+        {
+          id: 'step_3',
+          name: 'Add Flower Item',
+          legacy: 2,
+          type: 'game',
+          context: { contextType: 'item', contextValue: '504' },
+          actions: [
+            {
+              Type: 'AddItemOnBoard',
+              Target: 'BoardItem',
+              TargetBoardItem: {
+                ItemId: 504,
+                Position: { x: 4, y: 4 }
+              }
+            }
+          ],
+          completionConditions: [{ type: 'item_on_board', value: 'BoardItem' }]
+        },
+        {
+          id: 'step_4',
+          name: 'Unlock UI',
+          legacy: 3,
+          type: 'ui',
+          context: { contextType: 'feature', contextValue: 'Flowers' },
+          actions: [
+            {
+              Type: 'UnLockUIElement',
+              Target: 'All',
+              TargetDialog: null
+            }
+          ],
+          completionConditions: [{ type: 'user_action', value: 'click' }]
+        }
+      ],
+      'recipes_intro': [
+        {
+          id: 'step_1',
+          name: 'Recipes Feature Introduction',
+          legacy: 0,
+          type: 'ui',
+          context: { contextType: 'feature', contextValue: 'Recipes' },
+          actions: [
+            {
+              Type: 'LockUIElement',
+              Target: 'All',
+              TargetDialog: null
+            },
+            {
+              Type: 'ShowDialog',
+              Target: 'Null',
+              TargetDialog: { DialogId: 10016 }
+            },
+            {
+              Type: 'FadeIn',
+              Target: 'BoardScreen',
+              TypeFade: null
+            }
+          ],
+          completionConditions: [{ type: 'dialog_closed', value: 'dialog' }]
+        },
+        {
+          id: 'step_2',
+          name: 'Show Recipe Board Task',
+          legacy: 1,
+          type: 'ui',
+          context: { contextType: 'feature', contextValue: 'Recipes' },
+          actions: [
+            {
+              Type: 'HighlightElement',
+              Target: 'BoardTask',
+              TypeHighlight: { Type: 'Shader', IsCommonAmongSteps: false },
+              TargetBoardTask: { BoardTaskId: 1 }
+            },
+            {
+              Type: 'ShowTooltip',
+              Target: 'BoardTask',
+              TypeShowTooltip: {
+                Type: 'Finger',
+                InfoMessagePosition: 'Top'
+              },
+              TargetBoardTask: { BoardTaskId: 1 }
+            }
+          ],
+          completionConditions: [{ type: 'user_action', value: 'click' }]
+        },
+        {
+          id: 'step_3',
+          name: 'Wait for Recipe Task Ready',
+          legacy: 2,
+          type: 'game',
+          context: { contextType: 'feature', contextValue: 'Recipes' },
+          actions: [
+            {
+              Type: 'WaitForBoardTaskReady',
+              Target: 'BoardTask',
+              TargetBoardTask: { BoardTaskId: 1 }
+            }
+          ],
+          completionConditions: [{ type: 'user_action', value: 'click' }]
+        },
+        {
+          id: 'step_4',
+          name: 'Unlock UI',
+          legacy: 3,
+          type: 'ui',
+          context: { contextType: 'feature', contextValue: 'Recipes' },
+          actions: [
+            {
+              Type: 'UnLockUIElement',
+              Target: 'All',
+              TargetDialog: null
+            }
+          ],
+          completionConditions: [{ type: 'user_action', value: 'click' }]
+        }
+      ],
+      'mode_2_unlock': [
+        {
+          id: 'step_1',
+          name: 'Mode 2 Unlock Dialog',
+          legacy: 0,
+          type: 'ui',
+          context: { contextType: 'feature', contextValue: 'Mode Boost' },
+          actions: [
+            {
+              Type: 'LockUIElement',
+              Target: 'All',
+              TargetDialog: null
+            },
+            {
+              Type: 'ShowDialog',
+              Target: 'Null',
+              TargetDialog: { DialogId: 10017 }
+            },
+            {
+              Type: 'FadeIn',
+              Target: 'BoardScreen',
+              TypeFade: null
+            }
+          ],
+          completionConditions: [{ type: 'dialog_closed', value: 'dialog' }]
+        },
+        {
+          id: 'step_2',
+          name: 'Show Mode Unlock Popup',
+          legacy: 1,
+          type: 'ui',
+          context: { contextType: 'feature', contextValue: 'Mode Boost' },
+          actions: [
+            {
+              Type: 'ShowTargetPopup',
+              Target: 'Popup',
+              TargetPopup: { GamePopupType: 'ModeUnlock' }
+            }
+          ],
+          completionConditions: [{ type: 'popup_closed', value: 'popup' }]
+        },
+        {
+          id: 'step_3',
+          name: 'Show Simple Proceed Text',
+          legacy: 2,
+          type: 'ui',
+          context: { contextType: 'feature', contextValue: 'Mode Boost' },
+          actions: [
+            {
+              Type: 'ShowSimpleProceedText',
+              Target: 'Null',
+              TargetInfoText: { TextId: 'Mode2Unlocked' }
+            }
+          ],
+          completionConditions: [{ type: 'user_action', value: 'click' }]
+        },
+        {
+          id: 'step_4',
+          name: 'Unlock UI',
+          legacy: 3,
+          type: 'ui',
+          context: { contextType: 'feature', contextValue: 'Mode Boost' },
+          actions: [
+            {
+              Type: 'UnLockUIElement',
+              Target: 'All',
+              TargetDialog: null
+            }
+          ],
+          completionConditions: [{ type: 'user_action', value: 'click' }]
+        }
+      ]
+    };
+    
+    return templates[flowId] || [];
+  };
+
+  // Initialize flows with template stepsData
+  const initializeFlows = () => {
+    const flowDefinitions = [
+      { id: 'onboarding_core_loop', name: 'Core Loop Introduction', legacy: 1, steps: 14, status: 'active', priority: 100, modified: '2 hours ago' },
+      { id: 'second_scapes_task', name: 'Second Scapes Task', legacy: 2, steps: 21, status: 'active', priority: 95, modified: '1 day ago' },
+      { id: 'first_chapter_complete', name: 'First Chapter Completion', legacy: 3, steps: 12, status: 'active', priority: 90, modified: '3 days ago' },
+      { id: 'flowers_intro', name: 'Flowers Feature Intro', legacy: 13, steps: 4, status: 'active', priority: 50, modified: '1 week ago' },
+      { id: 'recipes_intro', name: 'Recipes Feature Intro', legacy: 14, steps: 7, status: 'draft', priority: 50, modified: 'Just now' },
+      { id: 'mode_2_unlock', name: 'Mode 2 Unlock', legacy: 10, steps: 7, status: 'inactive', priority: 40, modified: '2 weeks ago' }
+    ];
+    
+    return flowDefinitions.map(flow => ({
+      ...flow,
+      stepsData: createTemplateSteps(flow.id, flow.steps)
+    }));
+  };
+
+  const [flows, setFlows] = useState(initializeFlows());
   const [steps, setSteps] = useState([]);
   const [selectedFlow, setSelectedFlow] = useState(null);
   const [selectedStep, setSelectedStep] = useState(null);
