@@ -1079,6 +1079,9 @@ const FlowPreview = ({ steps, onClose }) => {
   const currentStep = (currentStepIndex >= 0 && currentStepIndex < steps.length) ? steps[currentStepIndex] : null;
   const isLastStep = currentStepIndex >= steps.length - 1;
   
+  // Check if current step is a scene context
+  const isSceneContext = currentStep?.context?.contextType === 'scene';
+  
   useEffect(() => {
     // Always reset on step change
     setActiveAnimations({});
@@ -1601,11 +1604,181 @@ const FlowPreview = ({ steps, onClose }) => {
         </div>
         
         <div className="flex-1 relative bg-gradient-to-br from-blue-50 to-purple-50 overflow-hidden">
-          {/* Board Container */}
-          <div className="absolute inset-0 flex items-center justify-center p-8">
-            <div className="relative">
-              {/* Board Grid */}
-              <div className="grid grid-cols-7 gap-2 bg-white p-4 rounded-lg shadow-lg">
+          {isSceneContext ? (
+            /* Ship Scene View */
+            <div className="absolute inset-0 flex items-center justify-center p-8">
+              <div className="relative w-full h-full max-w-4xl">
+                {/* Sea Background */}
+                <div className="absolute inset-0 bg-gradient-to-b from-blue-400 via-blue-500 to-blue-600 rounded-lg overflow-hidden">
+                  {/* Water waves animation */}
+                  <div className="absolute inset-0 opacity-30">
+                    <div className="absolute top-0 left-0 right-0 h-20 bg-blue-300/50 rounded-full blur-xl animate-pulse"></div>
+                    <div className="absolute bottom-0 left-0 right-0 h-32 bg-blue-400/50 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '0.5s' }}></div>
+                  </div>
+                  
+                  {/* Ship */}
+                  <div className="absolute bottom-20 left-1/2 -translate-x-1/2 transform" style={{ width: '400px', height: '300px' }}>
+                    {/* Ship Hull */}
+                    <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-b from-white via-gray-100 to-gray-200 rounded-t-full shadow-2xl border-4 border-gray-300">
+                      {/* Ship Windows */}
+                      <div className="absolute top-4 left-8 w-6 h-6 bg-yellow-300 rounded-full shadow-inner"></div>
+                      <div className="absolute top-4 left-20 w-6 h-6 bg-yellow-300 rounded-full shadow-inner"></div>
+                      <div className="absolute top-4 left-32 w-6 h-6 bg-yellow-300 rounded-full shadow-inner"></div>
+                      <div className="absolute top-4 right-8 w-6 h-6 bg-yellow-300 rounded-full shadow-inner"></div>
+                      <div className="absolute top-4 right-20 w-6 h-6 bg-yellow-300 rounded-full shadow-inner"></div>
+                    </div>
+                    
+                    {/* Ship Deck */}
+                    <div className="absolute bottom-32 left-0 right-0 h-20 bg-gradient-to-b from-amber-50 to-amber-100 rounded-t-lg border-4 border-amber-200 shadow-lg">
+                      {/* Helipad */}
+                      <div className="absolute top-2 left-1/2 -translate-x-1/2 w-24 h-24 bg-gray-800 rounded-full border-4 border-white flex items-center justify-center shadow-xl">
+                        <span className="text-white font-bold text-xl">H</span>
+                        <div className="absolute inset-0 border-2 border-yellow-400 rounded-full"></div>
+                      </div>
+                      
+                      {/* Ship Railings */}
+                      <div className="absolute top-0 left-0 right-0 h-2 bg-amber-300"></div>
+                      <div className="absolute bottom-0 left-0 right-0 h-2 bg-amber-300"></div>
+                    </div>
+                    
+                    {/* Ship Superstructure */}
+                    <div className="absolute bottom-52 left-1/4 w-32 h-24 bg-white rounded-t-lg border-4 border-gray-300 shadow-lg">
+                      <div className="absolute top-2 left-2 w-4 h-4 bg-blue-400 rounded"></div>
+                      <div className="absolute top-2 right-2 w-4 h-4 bg-blue-400 rounded"></div>
+                    </div>
+                    
+                    {/* Ship Sails/Awnings */}
+                    <div className="absolute bottom-60 left-8 w-20 h-16 bg-blue-200 rounded-lg transform -rotate-12 shadow-lg border-2 border-blue-300"></div>
+                    <div className="absolute bottom-60 right-8 w-20 h-16 bg-blue-200 rounded-lg transform rotate-12 shadow-lg border-2 border-blue-300"></div>
+                    
+                    {/* Interactive Areas on Ship */}
+                    {highlightedElement && (highlightedElement.target === 'ScapeScreen' || highlightedElement.target === 'All') && (
+                      <div className="absolute inset-0 bg-yellow-400/30 rounded-lg border-4 border-yellow-400 animate-pulse"></div>
+                    )}
+                    
+                    {/* Finger animations on ship */}
+                    {Object.entries(activeAnimations).map(([key, anim]) => {
+                      if (anim.type === 'finger' && anim.position) {
+                        return (
+                          <div
+                            key={key}
+                            className="absolute"
+                            style={{
+                              left: `${anim.position.x * 10 + 50}%`,
+                              top: `${anim.position.y * 10 + 30}%`,
+                              transform: 'translate(-50%, -50%)'
+                            }}
+                          >
+                            <div className="text-5xl animate-finger-bounce">👆</div>
+                            <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg z-20">
+                              {anim.tooltipType === 'Finger' || anim.tooltipType === 'Tap' ? 'Tap here' : anim.tooltipType || 'Tap here'}
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })}
+                  </div>
+                  
+                  {/* UI Elements Overlay (like in the image) */}
+                  <div className="absolute top-4 left-4 right-4 flex justify-between items-start z-10">
+                    {/* Top Bar UI */}
+                    <div className="flex items-center gap-2">
+                      <div className="bg-white/90 backdrop-blur-sm rounded-lg px-3 py-2 border-2 border-gray-300 shadow-lg">
+                        <div className="text-xs text-gray-500">Level</div>
+                        <div className="text-lg font-bold text-gray-800">78</div>
+                      </div>
+                      <div className="bg-white/90 backdrop-blur-sm rounded-lg px-3 py-2 border-2 border-yellow-300 shadow-lg">
+                        <div className="flex items-center gap-1">
+                          <span className="text-xl">⚡</span>
+                          <span className="text-sm font-bold text-gray-800">605,444</span>
+                        </div>
+                      </div>
+                      <div className="bg-white/90 backdrop-blur-sm rounded-lg px-3 py-2 border-2 border-green-300 shadow-lg">
+                        <div className="flex items-center gap-1">
+                          <span className="text-xl">💰</span>
+                          <span className="text-sm font-bold text-gray-800">162,630</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <div className="bg-white/90 backdrop-blur-sm rounded-lg p-2 border-2 border-gray-300 shadow-lg cursor-pointer hover:scale-110 transition-transform">
+                        <span className="text-2xl">🏪</span>
+                      </div>
+                      <div className="bg-white/90 backdrop-blur-sm rounded-lg p-2 border-2 border-gray-300 shadow-lg cursor-pointer hover:scale-110 transition-transform">
+                        <Settings size={20} />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Right Side UI Stack */}
+                  <div className="absolute top-20 right-4 flex flex-col gap-3 z-10">
+                    <div className="bg-white/90 backdrop-blur-sm rounded-lg p-3 border-2 border-yellow-400 shadow-lg cursor-pointer hover:scale-105 transition-transform">
+                      <div className="text-2xl mb-1">📜</div>
+                      <div className="text-xs font-bold text-yellow-700">+600</div>
+                      <div className="text-xs text-gray-600">0/7</div>
+                    </div>
+                    <div className="bg-white/90 backdrop-blur-sm rounded-lg p-3 border-2 border-orange-400 shadow-lg cursor-pointer hover:scale-105 transition-transform relative">
+                      <div className="text-2xl mb-1">👑</div>
+                      <div className="text-xs text-gray-600">17 Days</div>
+                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+                        <span className="text-white text-xs">!</span>
+                      </div>
+                    </div>
+                    <div className="bg-white/90 backdrop-blur-sm rounded-lg p-3 border-2 border-purple-400 shadow-lg cursor-pointer hover:scale-105 transition-transform">
+                      <div className="text-2xl mb-1">🪩</div>
+                      <div className="text-xs font-bold text-purple-700">Disco</div>
+                      <div className="text-xs text-gray-600">46:40</div>
+                    </div>
+                  </div>
+                  
+                  {/* Left Side UI Stack */}
+                  <div className="absolute top-20 left-4 flex flex-col gap-3 z-10">
+                    <div className="bg-white/90 backdrop-blur-sm rounded-lg p-3 border-2 border-pink-400 shadow-lg cursor-pointer hover:scale-105 transition-transform">
+                      <div className="text-2xl mb-1">👱‍♀️</div>
+                      <div className="text-xs text-gray-600">28 Days</div>
+                    </div>
+                    <div className="bg-white/90 backdrop-blur-sm rounded-lg p-3 border-2 border-rainbow shadow-lg cursor-pointer hover:scale-105 transition-transform">
+                      <div className="text-2xl mb-1">🌈</div>
+                      <div className="text-xs text-gray-600">22:40</div>
+                    </div>
+                  </div>
+                  
+                  {/* Bottom Center - Collect Button */}
+                  {showDialog && (
+                    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20">
+                      <div className="bg-white/95 backdrop-blur-sm rounded-lg p-4 border-4 border-green-400 shadow-2xl">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="text-4xl">💎</div>
+                          <div>
+                            <div className="font-bold text-lg text-gray-800">Reward Ready!</div>
+                            <div className="text-sm text-gray-600">Click to collect</div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleClick('dialog')}
+                          className="w-full bg-green-500 text-white py-3 rounded-lg hover:bg-green-600 transition-colors font-bold text-lg shadow-lg"
+                        >
+                          Collect
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Shade overlay for scene */}
+                  {shaded && (
+                    <div className="absolute inset-0 bg-black/40 rounded-lg pointer-events-none" />
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Board View (existing) */
+            <div className="absolute inset-0 flex items-center justify-center p-8">
+              <div className="relative">
+                {/* Board Grid */}
+                <div className="grid grid-cols-7 gap-2 bg-white p-4 rounded-lg shadow-lg">
                 {boardItems.map((item) => {
                   const itemKey = `${item.x}-${item.y}`;
                   const configuredItem = configuredItems.get(itemKey) || configuredBoardItems.get(itemKey);
@@ -1742,9 +1915,10 @@ const FlowPreview = ({ steps, onClose }) => {
               )}
             </div>
           </div>
+          )}
           
-          {/* Dialog */}
-          {showDialog && (
+          {/* Dialog - Only show in board view, scene view has its own dialog */}
+          {showDialog && !isSceneContext && (
             <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-white rounded-lg shadow-2xl p-6 max-w-md border-2 border-blue-300 animate-fadeIn z-50">
               <div className="flex items-start gap-4">
                 <div className="text-4xl">👤</div>
