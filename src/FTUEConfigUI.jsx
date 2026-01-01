@@ -87,7 +87,7 @@ const StepNode = ({ step, selected, onClick, onDelete, onDragStart, onDragOver, 
   );
 };
 
-const PropertiesPanel = ({ step, onClose, onUpdate, onAddCondition, onAddAction, onDeleteAction, allSteps }) => {
+const PropertiesPanel = ({ step, onClose, onUpdate, onAddCondition, onAddAction, onEditAction, onDeleteAction, allSteps }) => {
   const [expanded, setExpanded] = useState({ entry: false, actions: true, completion: true, exit: false });
   const [stepData, setStepData] = useState(step || {});
   
@@ -157,7 +157,7 @@ const PropertiesPanel = ({ step, onClose, onUpdate, onAddCondition, onAddAction,
               <div key={i} className="flex items-center gap-2 p-2 bg-gray-50 rounded border">
                 <GripVertical size={14} className="text-gray-400 cursor-grab" />
                 <span className="flex-1 text-sm">{String(action).replace(/_/g, ' ')}</span>
-                <button className="p-1 hover:bg-gray-200 rounded text-gray-400"><Edit3 size={12} /></button>
+                <button onClick={() => onEditAction && onEditAction(stepData, i, action)} className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-blue-500" title="Edit Action"><Edit3 size={12} /></button>
                 <button onClick={() => onDeleteAction && onDeleteAction(stepData, i)} className="p-1 hover:bg-red-100 rounded text-gray-400 hover:text-red-500"><Trash2 size={12} /></button>
               </div>
             ))}
@@ -201,10 +201,14 @@ const ConditionBuilderModal = ({ onClose, onAdd, context }) => {
   const [selectedType, setSelectedType] = useState('chapter');
   const [operator, setOperator] = useState('==');
   const [value, setValue] = useState('1');
+  const [selectedFeature, setSelectedFeature] = useState('');
+  
+  const features = ['Disco', 'Cascade', 'Missions', 'Mode Boost', 'Race', 'Flowers', 'Recipes', 'Power Ups', 'Daily Challenges', 'Events'];
   
   const handleAdd = () => {
     if (onAdd) {
-      onAdd({ type: selectedType, operator, value });
+      const conditionValue = selectedType === 'feature_active' ? selectedFeature : value;
+      onAdd({ type: selectedType, operator, value: conditionValue });
       // Close modal after state update
       setTimeout(() => onClose(), 0);
     } else {
@@ -239,6 +243,25 @@ const ConditionBuilderModal = ({ onClose, onAdd, context }) => {
               <div className="p-3 bg-blue-50 rounded border border-blue-200 text-sm"><span className="text-blue-700">Preview: </span><span className="font-mono">{selectedType} {operator} {value}</span></div>
             </div>
           )}
+          {selectedType === 'feature_active' && (
+            <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Select Feature</label>
+                <select value={selectedFeature} onChange={(e) => setSelectedFeature(e.target.value)} className="w-full px-3 py-2 border rounded-lg">
+                  <option value="">— Select Feature —</option>
+                  {features.map(feature => (
+                    <option key={feature} value={feature.toLowerCase().replace(/\s+/g, '_')}>{feature}</option>
+                  ))}
+                </select>
+              </div>
+              {selectedFeature && (
+                <div className="p-3 bg-blue-50 rounded border border-blue-200 text-sm">
+                  <span className="text-blue-700">Preview: </span>
+                  <span className="font-mono">feature_active == {selectedFeature}</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <div className="p-4 border-t bg-gray-50 flex justify-end gap-2">
           <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-lg">Cancel</button>
@@ -249,16 +272,46 @@ const ConditionBuilderModal = ({ onClose, onAdd, context }) => {
   );
 };
 
-const ActionBuilderModal = ({ onClose, onAdd, step }) => {
-  const [selectedAction, setSelectedAction] = useState('show_dialog');
-  const [activeCategory, setActiveCategory] = useState('ui');
-  const [dialogId, setDialogId] = useState('');
-  const [character, setCharacter] = useState('chris');
-  const [blockInput, setBlockInput] = useState(true);
+const ActionBuilderModal = ({ onClose, onAdd, step, existingAction, actionIndex, isEdit }) => {
+  // Initialize with existing action data if editing
+  const getInitialAction = () => {
+    if (isEdit && existingAction) {
+      const actionId = typeof existingAction === 'string' ? existingAction : existingAction.id;
+      return actionId || 'show_dialog';
+    }
+    return 'show_dialog';
+  };
   
-  const isAddingStep = !step; // If no step provided, we're adding a new step
-  const modalTitle = isAddingStep ? 'Add Step' : 'Add Action';
-  const buttonText = isAddingStep ? 'Add Step' : 'Add Action';
+  const [selectedAction, setSelectedAction] = useState(getInitialAction());
+  const [activeCategory, setActiveCategory] = useState(() => {
+    if (isEdit && existingAction) {
+      const actionId = typeof existingAction === 'string' ? existingAction : existingAction.id;
+      return actionTypes.find(a => a.id === actionId)?.category || 'ui';
+    }
+    return 'ui';
+  });
+  const [dialogId, setDialogId] = useState(() => {
+    if (isEdit && existingAction && typeof existingAction === 'object') {
+      return existingAction.dialogId || '';
+    }
+    return '';
+  });
+  const [character, setCharacter] = useState(() => {
+    if (isEdit && existingAction && typeof existingAction === 'object') {
+      return existingAction.character || 'chris';
+    }
+    return 'chris';
+  });
+  const [blockInput, setBlockInput] = useState(() => {
+    if (isEdit && existingAction && typeof existingAction === 'object') {
+      return existingAction.blockInput !== undefined ? existingAction.blockInput : true;
+    }
+    return true;
+  });
+  
+  const isAddingStep = !step && !isEdit; // If no step provided and not editing, we're adding a new step
+  const modalTitle = isEdit ? 'Edit Action' : (isAddingStep ? 'Add Step' : 'Add Action');
+  const buttonText = isEdit ? 'Save Changes' : (isAddingStep ? 'Add Step' : 'Add Action');
   
   const categories = [{ id: 'ui', name: 'UI', color: '#2196F3' }, { id: 'game', name: 'Game', color: '#4CAF50' }, { id: 'analytics', name: 'Analytics', color: '#FF9800' }, { id: 'flow', name: 'Flow', color: '#9C27B0' }];
   const filteredActions = actionTypes.filter(a => a.category === activeCategory);
@@ -461,6 +514,8 @@ export default function FTUEConfigUI() {
   const [toast, setToast] = useState(null);
   const [conditionContext, setConditionContext] = useState(null);
   const [draggedIndex, setDraggedIndex] = useState(null);
+  const [editingActionIndex, setEditingActionIndex] = useState(null);
+  const [editingAction, setEditingAction] = useState(null);
   
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -546,20 +601,44 @@ export default function FTUEConfigUI() {
       return;
     }
     setSelectedStep(step);
+    setEditingActionIndex(null);
+    setEditingAction(null);
+    setShowActionModal(true);
+  };
+  
+  const handleEditAction = (step, actionIndex, action) => {
+    if (!step) {
+      return;
+    }
+    setSelectedStep(step);
+    setEditingActionIndex(actionIndex);
+    setEditingAction(action);
     setShowActionModal(true);
   };
   
   const handleActionAdded = (actionData) => {
     if (selectedStep && actionData) {
-      const oldActions = selectedStep.actions || [];
-      const updatedSteps = steps.map(s => 
-        s && s.id === selectedStep.id 
-          ? { ...s, actions: [...(s.actions || []), actionData.id] }
-          : s
-      );
+      const updatedSteps = steps.map(s => {
+        if (s && s.id === selectedStep.id) {
+          const currentActions = s.actions || [];
+          if (editingActionIndex !== null && editingActionIndex !== undefined) {
+            // Editing existing action
+            const newActions = [...currentActions];
+            newActions[editingActionIndex] = actionData.id;
+            return { ...s, actions: newActions };
+          } else {
+            // Adding new action
+            return { ...s, actions: [...currentActions, actionData.id] };
+          }
+        }
+        return s;
+      });
       setSteps(updatedSteps);
       setSelectedStep(updatedSteps.find(s => s && s.id === selectedStep.id));
-      showToast('Action added successfully!');
+      const wasEditing = editingActionIndex !== null && editingActionIndex !== undefined;
+      setEditingActionIndex(null);
+      setEditingAction(null);
+      showToast(wasEditing ? 'Action updated successfully!' : 'Action added successfully!');
     } else {
     }
   };
@@ -775,6 +854,7 @@ export default function FTUEConfigUI() {
           onUpdate={handleStepUpdate}
           onAddCondition={handleAddCondition}
           onAddAction={handleAddAction}
+          onEditAction={handleEditAction}
           onDeleteAction={handleDeleteAction}
           allSteps={steps}
         />
@@ -783,9 +863,18 @@ export default function FTUEConfigUI() {
       {showConditionModal && <ConditionBuilderModal onClose={() => {
         setShowConditionModal(false);
       }} onAdd={handleConditionAdded} context={conditionContext} />}
-      {showActionModal && <ActionBuilderModal onClose={() => {
-        setShowActionModal(false);
-      }} onAdd={selectedStep ? handleActionAdded : handleAddStep} step={selectedStep} />}
+      {showActionModal && <ActionBuilderModal 
+        onClose={() => {
+          setShowActionModal(false);
+          setEditingActionIndex(null);
+          setEditingAction(null);
+        }} 
+        onAdd={selectedStep ? handleActionAdded : handleAddStep} 
+        step={selectedStep} 
+        existingAction={editingAction}
+        actionIndex={editingActionIndex}
+        isEdit={editingActionIndex !== null && editingActionIndex !== undefined}
+      />}
       {showSettingsModal && <SettingsModal onClose={() => {
         setShowSettingsModal(false);
       }} flow={selectedFlow || {}} onUpdate={(settings) => {
