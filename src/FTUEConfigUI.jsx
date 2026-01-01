@@ -1314,7 +1314,8 @@ const FlowPreview = ({ steps, onClose }) => {
     if (itemData?.configured && !itemData.isGenerator) {
       const itemKey = `${itemData.x}-${itemData.y}`;
       // Check if there's a similar item nearby that could merge
-      const nearbyItems = boardItems.filter(i => 
+      const currentBoardItems = boardItemsRef.current || [];
+      const nearbyItems = currentBoardItems.filter(i => 
         i.configured && 
         !i.isGenerator && 
         i.configured.itemId === itemData.configured.itemId &&
@@ -1499,6 +1500,12 @@ const FlowPreview = ({ steps, onClose }) => {
       });
     }
   }
+  
+  // Store boardItems in a ref or make it accessible to handleClick
+  const boardItemsRef = useRef(boardItems);
+  useEffect(() => {
+    boardItemsRef.current = boardItems;
+  }, [boardItems]);
   
   return (
     <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50">
