@@ -203,11 +203,11 @@ const ConditionBuilderModal = ({ onClose, onAdd, context }) => {
   const [value, setValue] = useState('1');
   const [selectedFeature, setSelectedFeature] = useState('');
   
-  // Real feature names from the system
+  // Real feature names from the system (matching RequiredActiveFeature values)
   const features = [
     'None', 'Disco', 'Cascade', 'Missions', 'Mode Boost', 'Race', 
     'Flowers', 'Recipes', 'Power Ups', 'Daily Challenges', 'Events', 
-    'TimedBoardTask', 'FusionFair', 'Reel', 'Oyster', 'Flowers', 'HarvestSystem'
+    'TimedBoardTask', 'FusionFair', 'Reel', 'Oyster', 'HarvestSystem'
   ];
   
   const handleAdd = () => {
@@ -255,7 +255,7 @@ const ConditionBuilderModal = ({ onClose, onAdd, context }) => {
                 <select value={selectedFeature} onChange={(e) => setSelectedFeature(e.target.value)} className="w-full px-3 py-2 border rounded-lg">
                   <option value="">— Select Feature —</option>
                   {features.map(feature => (
-                    <option key={feature} value={feature.toLowerCase().replace(/\s+/g, '_')}>{feature}</option>
+                    <option key={feature} value={feature === 'None' ? '' : feature}>{feature}</option>
                   ))}
                 </select>
               </div>
@@ -314,12 +314,16 @@ const ActionDetailsModal = ({ onClose, action, step, onUpdate }) => {
     'DtgMainTutorialFinished', 'ExtendTutorialStepData'
   ];
   
+  // Real target types from the system
   const targetTypes = [
     'Null', 'All', 'BoardScreen', 'ScapeScreen', 'DialogSkip', 'DialogClose', 'DialogProceed',
     'BoardItem', 'BoardItems', 'BoardTask', 'Character', 'Dialog', 'ScapeTask',
     'HarvestSystem', 'RewardCenter', 'BoardModePlus', 'FusionFairGoToBoard',
     'FusionFairBoardTaskItemInfo', 'FusionFairInfoPopupClose', 'TutorialFlowersPopupSimpleProceed',
-    'TutorialFusionFairPopupSimpleProceed', 'Group'
+    'TutorialFusionFairPopupSimpleProceed', 'Group', 'ScapeTaskMapTooltip', 'DialogChatBubble',
+    'BoardItemLastGenerated', 'BoardActiveGenerator', 'HarvestSystemTitle', 'ScapeTaskFade',
+    'BoardTaskScroll', 'BoardTaskItemInfo', 'ScapeTaskScroll', 'ScapeTaskOpen', 'ItemTooltipDelete',
+    'Store', 'Settings', 'BoardTile', 'FusionFairInfoPopupClose'
   ];
   
   return (
@@ -361,16 +365,40 @@ const ActionDetailsModal = ({ onClose, action, step, onUpdate }) => {
                     value={actionData.Type || ''}
                     onChange={(e) => {
                       const newType = e.target.value;
-                      // Reset action data when type changes, but preserve Type and Target
-                      setActionData({ 
+                      // When type changes, initialize appropriate fields
+                      const newActionData = { 
                         Type: newType, 
-                        Target: actionData.Target || 'Null',
-                        // Clear type-specific fields when changing type
-                        ...(newType === 'ShowDialog' ? {} : { TargetDialog: null }),
-                        ...(newType === 'ShowTooltip' && actionData.Target === 'Character' ? {} : { TargetCharacter: null }),
-                        ...(newType === 'ShowCutscene' ? {} : { TypeShowCutScene: null }),
-                        ...(newType === 'WaitForAnimationComplete' ? {} : { TargetAwaitedAnimation: null })
-                      });
+                        Target: actionData.Target || 'Null'
+                      };
+                      
+                      // Initialize type-specific fields
+                      if (newType === 'ShowDialog') {
+                        newActionData.TargetDialog = actionData.TargetDialog || { DialogId: 0 };
+                      }
+                      if (newType === 'ShowTooltip' && actionData.Target === 'Character') {
+                        newActionData.TargetCharacter = actionData.TargetCharacter || { CharacterId: 'Chris' };
+                        newActionData.TypeShowTooltip = actionData.TypeShowTooltip || { Type: 'Info', HandRotation: 'Default', InfoMessagePosition: 'Bottom', IsLikeADialog: false, Emotion: 'None' };
+                      }
+                      if (newType === 'ShowCutscene') {
+                        newActionData.TypeShowCutScene = actionData.TypeShowCutScene || { CutsceneId: '' };
+                      }
+                      if (newType === 'WaitForAnimationComplete') {
+                        newActionData.TargetAwaitedAnimation = actionData.TargetAwaitedAnimation || { AwaitedAnimations: [{ AwaitedAnimation: '', AwaitComplete: false }] };
+                      }
+                      if (newType === 'HighlightElement') {
+                        newActionData.TypeHighlight = actionData.TypeHighlight || { Type: 'Shader', IsCommonAmongSteps: false };
+                      }
+                      if (newType === 'FadeIn') {
+                        newActionData.TypeFade = actionData.TypeFade || { Type: 'Shrink', IsCommonAmongSteps: false };
+                      }
+                      if (newType === 'IdleHelp') {
+                        newActionData.TypeIdleHelp = actionData.TypeIdleHelp || { IdleHelpDelay: 2 };
+                      }
+                      if (newType === 'ShowTargetPopup') {
+                        newActionData.TargetPopup = actionData.TargetPopup || { GamePopupType: '' };
+                      }
+                      
+                      setActionData(newActionData);
                     }}
                     className="w-full px-3 py-2 border rounded-lg"
                   >
@@ -407,35 +435,42 @@ const ActionDetailsModal = ({ onClose, action, step, onUpdate }) => {
                 </div>
               </div>
               
-              {/* TargetDialog */}
-              {actionData.TargetDialog && (
+              {/* TargetDialog - Show for ShowDialog action or if already exists */}
+              {(actionData.Type === 'ShowDialog' || actionData.TargetDialog) && (
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Dialog ID</label>
                   <input
                     type="number"
-                    value={actionData.TargetDialog.DialogId || ''}
+                    value={actionData.TargetDialog?.DialogId || ''}
                     onChange={(e) => setActionData({
                       ...actionData,
                       TargetDialog: { DialogId: parseInt(e.target.value) || 0 }
                     })}
+                    placeholder="e.g., 1001199, 10013, 10014"
                     className="w-full px-3 py-2 border rounded-lg"
                   />
                 </div>
               )}
               
-              {/* TargetCharacter */}
-              {actionData.TargetCharacter && (
+              {/* TargetCharacter - Show for ShowTooltip with Character target or if already exists */}
+              {((actionData.Type === 'ShowTooltip' && actionData.Target === 'Character') || actionData.TargetCharacter) && (
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Character ID</label>
-                  <input
-                    type="text"
-                    value={actionData.TargetCharacter.CharacterId || ''}
+                  <select
+                    value={actionData.TargetCharacter?.CharacterId || 'Chris'}
                     onChange={(e) => setActionData({
                       ...actionData,
                       TargetCharacter: { CharacterId: e.target.value }
                     })}
                     className="w-full px-3 py-2 border rounded-lg"
-                  />
+                  >
+                    <option>Chris</option>
+                    <option>Kara</option>
+                    <option>Benny</option>
+                    <option>Leslie</option>
+                    <option>Mateo</option>
+                    <option>Tyrell</option>
+                  </select>
                 </div>
               )}
               
