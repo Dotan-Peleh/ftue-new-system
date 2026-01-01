@@ -263,11 +263,46 @@ const StepContextModal = ({ onClose, onSelect }) => {
   const [contextValue, setContextValue] = useState('');
   
   const contextTypes = [
-    { id: 'scape_task', name: 'Scape Task', icon: '🗺️', description: 'Select a scape task' },
-    { id: 'scene', name: 'Scene', icon: '🎬', description: 'Select a scene' },
-    { id: 'chapter', name: 'Chapter', icon: '📖', description: 'Select a chapter' },
-    { id: 'item', name: 'Item', icon: '🎁', description: 'Select an item' },
-    { id: 'feature', name: 'Feature', icon: '⭐', description: 'Select a feature' }
+    { 
+      id: 'scape_task', 
+      name: 'Scape Task', 
+      icon: '🗺️', 
+      description: 'A specific task on the map',
+      example: 'Example: Task 1, Task 2',
+      help: 'Use this when the step is about completing a specific scape task'
+    },
+    { 
+      id: 'scene', 
+      name: 'Scene', 
+      icon: '🎬', 
+      description: 'A game scene or location',
+      example: 'Example: BridgeAreaStep0Part0',
+      help: 'Use this for scene-specific tutorials or cutscenes'
+    },
+    { 
+      id: 'chapter', 
+      name: 'Chapter', 
+      icon: '📖', 
+      description: 'A story chapter',
+      example: 'Example: Chapter 1, Chapter 2',
+      help: 'Use this when the step relates to a specific chapter in the story'
+    },
+    { 
+      id: 'item', 
+      name: 'Item', 
+      icon: '🎁', 
+      description: 'A specific game item',
+      example: 'Example: Item 399, Item 504',
+      help: 'Use this when teaching about or using a specific item'
+    },
+    { 
+      id: 'feature', 
+      name: 'Feature', 
+      icon: '⭐', 
+      description: 'A game feature or system',
+      example: 'Example: Disco, Cascade, Missions',
+      help: 'Use this when introducing or explaining a game feature'
+    }
   ];
   
   const features = [
@@ -305,6 +340,16 @@ const StepContextModal = ({ onClose, onSelect }) => {
         
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ minHeight: 0 }}>
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-start gap-2">
+              <div className="text-blue-500 mt-0.5">💡</div>
+              <div className="flex-1">
+                <div className="text-sm font-medium text-blue-900 mb-1">Step 1 of 2: Choose Context</div>
+                <div className="text-xs text-blue-700">Select what this step is about. This helps organize your tutorial flow.</div>
+              </div>
+            </div>
+          </div>
+          
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3">What is this step about?</label>
             <div className="grid grid-cols-2 gap-3">
@@ -315,30 +360,49 @@ const StepContextModal = ({ onClose, onSelect }) => {
                     setSelectedContext(type.id);
                     setContextValue('');
                   }}
-                  className={`p-4 rounded-lg border-2 text-left transition-all ${
+                  className={`p-4 rounded-lg border-2 text-left transition-all relative ${
                     selectedContext === type.id 
-                      ? 'border-blue-500 bg-blue-50' 
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-blue-500 bg-blue-50 shadow-md' 
+                      : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
                   }`}
                 >
+                  {selectedContext === type.id && (
+                    <div className="absolute top-2 right-2 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                      <Check size={12} className="text-white" />
+                    </div>
+                  )}
                   <div className="text-2xl mb-2">{type.icon}</div>
-                  <div className="font-medium text-sm">{type.name}</div>
-                  <div className="text-xs text-gray-500 mt-1">{type.description}</div>
+                  <div className="font-medium text-sm mb-1">{type.name}</div>
+                  <div className="text-xs text-gray-600 mb-1">{type.description}</div>
+                  <div className="text-xs text-gray-400 italic">{type.example}</div>
                 </button>
               ))}
             </div>
           </div>
           
           {selectedContext && (
-            <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
+            <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="text-xs text-green-700">
+                <span className="font-medium">💡 Tip: </span>
+                {contextTypes.find(t => t.id === selectedContext)?.help}
+              </div>
+            </div>
+          )}
+          
+          {selectedContext && (
+            <div className="space-y-3 p-4 bg-gray-50 rounded-lg border-2 border-blue-200">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="text-blue-500">✓</div>
+                <div className="text-sm font-medium text-gray-700">Step 2 of 2: Enter Value</div>
+              </div>
+              
               {selectedContext === 'feature' ? (
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Select Feature</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Select Feature</label>
                   <select
                     value={contextValue}
                     onChange={(e) => {
                       const value = e.target.value;
-                      // Don't allow "None" or empty string as a valid selection
                       if (value && value !== 'None') {
                         setContextValue(value);
                       } else {
@@ -346,64 +410,75 @@ const StepContextModal = ({ onClose, onSelect }) => {
                       }
                     }}
                     onClick={(e) => e.stopPropagation()}
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-sm"
                   >
-                    <option value="">— Select Feature —</option>
+                    <option value="">— Select a Feature —</option>
                     {features.filter(f => f !== 'None').map(feature => (
                       <option key={feature} value={feature}>{feature}</option>
                     ))}
                   </select>
+                  <div className="mt-2 text-xs text-gray-500">Choose from available game features</div>
                 </div>
               ) : selectedContext === 'chapter' ? (
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Chapter Number</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Chapter Number</label>
                   <input
                     type="number"
                     value={contextValue}
                     onChange={(e) => setContextValue(e.target.value)}
-                    placeholder="e.g., 1, 2, 3"
-                    className="w-full px-3 py-2 border rounded-lg"
+                    placeholder="Enter chapter number (e.g., 1, 2, 3)"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-sm"
                   />
+                  <div className="mt-2 text-xs text-gray-500">Enter the chapter number this step relates to</div>
                 </div>
               ) : selectedContext === 'scape_task' ? (
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Scape Task ID</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Scape Task ID</label>
                   <input
                     type="number"
                     value={contextValue}
                     onChange={(e) => setContextValue(e.target.value)}
-                    placeholder="e.g., 1, 2"
-                    className="w-full px-3 py-2 border rounded-lg"
+                    placeholder="Enter task ID (e.g., 1, 2)"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-sm"
                   />
+                  <div className="mt-2 text-xs text-gray-500">Enter the ID of the scape task</div>
                 </div>
               ) : selectedContext === 'item' ? (
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Item ID</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Item ID</label>
                   <input
                     type="number"
                     value={contextValue}
                     onChange={(e) => setContextValue(e.target.value)}
-                    placeholder="e.g., 399, 692, 504"
-                    className="w-full px-3 py-2 border rounded-lg"
+                    placeholder="Enter item ID (e.g., 399, 692, 504)"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-sm"
                   />
+                  <div className="mt-2 text-xs text-gray-500">Enter the ID of the item this step uses</div>
                 </div>
               ) : selectedContext === 'scene' ? (
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Scene Name/ID</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Scene Name/ID</label>
                   <input
                     type="text"
                     value={contextValue}
                     onChange={(e) => setContextValue(e.target.value)}
-                    placeholder="e.g., BridgeAreaStep0Part0"
-                    className="w-full px-3 py-2 border rounded-lg"
+                    placeholder="Enter scene name (e.g., BridgeAreaStep0Part0)"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-sm"
                   />
+                  <div className="mt-2 text-xs text-gray-500">Enter the scene identifier or name</div>
                 </div>
               ) : null}
               
               {contextValue && (
-                <div className="p-3 bg-blue-50 rounded border border-blue-200 text-sm">
-                  <span className="text-blue-700">Selected: </span>
-                  <span className="font-mono">{contextTypes.find(t => t.id === selectedContext)?.name} = {contextValue}</span>
+                <div className="p-4 bg-green-50 rounded-lg border-2 border-green-300">
+                  <div className="flex items-center gap-2 mb-1">
+                    <CheckCircle2 size={16} className="text-green-600" />
+                    <span className="text-sm font-medium text-green-900">Ready to Continue!</span>
+                  </div>
+                  <div className="text-sm text-green-700 mt-1">
+                    <span className="font-medium">{contextTypes.find(t => t.id === selectedContext)?.name}:</span>{' '}
+                    <span className="font-mono bg-white px-2 py-1 rounded">{contextValue}</span>
+                  </div>
                 </div>
               )}
             </div>
@@ -1878,35 +1953,157 @@ const ActionBuilderModal = ({ onClose, onAdd, step, existingAction, actionIndex,
   
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-[600px] max-h-[80vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        <div className="p-4 border-b flex items-center justify-between">
-          <h3 className="font-semibold text-lg">{modalTitle}</h3>
+      <div className="bg-white rounded-xl shadow-xl w-[700px] max-h-[85vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="p-4 border-b flex items-center justify-between flex-shrink-0">
+          <div>
+            <h3 className="font-semibold text-lg">{modalTitle}</h3>
+            {isAddingStep && (
+              <p className="text-xs text-gray-500 mt-1">Choose an action to add to your step</p>
+            )}
+          </div>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X size={20} /></button>
         </div>
-        <div className="flex border-b">
+        
+        {isAddingStep && (
+          <div className="p-3 bg-blue-50 border-b border-blue-200 flex-shrink-0">
+            <div className="flex items-start gap-2">
+              <div className="text-blue-500 mt-0.5">💡</div>
+              <div className="flex-1">
+                <div className="text-sm font-medium text-blue-900 mb-1">Step 2 of 2: Choose Action</div>
+                <div className="text-xs text-blue-700">Select what this step should do. You can add more actions later in the step properties.</div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        <div className="flex border-b flex-shrink-0">
           {categories.map(cat => (
-            <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`px-4 py-2 text-sm font-medium border-b-2 transition-all ${activeCategory === cat.id ? 'border-current' : 'border-transparent text-gray-500'}`} style={{ color: activeCategory === cat.id ? cat.color : undefined }}>{cat.name}</button>
+            <button 
+              key={cat.id} 
+              onClick={() => setActiveCategory(cat.id)} 
+              className={`px-4 py-3 text-sm font-medium border-b-2 transition-all relative ${
+                activeCategory === cat.id ? 'border-current' : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`} 
+              style={{ color: activeCategory === cat.id ? cat.color : undefined }}
+            >
+              {cat.name}
+              {cat.description && (
+                <div className="absolute top-full left-0 right-0 bg-gray-800 text-white text-xs p-1 rounded mt-1 opacity-0 hover:opacity-100 pointer-events-none z-10 transition-opacity">
+                  {cat.description}
+                </div>
+              )}
+            </button>
           ))}
         </div>
-        <div className="p-4 space-y-4">
-          <div className="grid grid-cols-4 gap-2">
-            {filteredActions.map(action => (
-              <button key={action.id} onClick={() => setSelectedAction(action.id)} className={`p-3 rounded-lg border-2 text-center transition-all ${selectedAction === action.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                <div className="flex flex-col items-center gap-2">{action.icon}<span className="text-xs">{action.name}</span></div>
-              </button>
-            ))}
-          </div>
-          {selectedAction === 'show_dialog' && (
-            <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
-              <div><label className="block text-xs font-medium text-gray-500 mb-1">Dialog ID</label><input type="text" value={dialogId} onChange={(e) => setDialogId(e.target.value)} placeholder="e.g., ftue_intro_chris" className="w-full px-3 py-2 border rounded-lg" /></div>
-              <div><label className="block text-xs font-medium text-gray-500 mb-1">Character</label><select value={character} onChange={(e) => setCharacter(e.target.value)} className="w-full px-3 py-2 border rounded-lg"><option>Chris</option><option>Kara</option><option>Benny</option><option>Leslie</option><option>Mateo</option><option>Tyrell</option></select></div>
-              <div className="flex items-center gap-2"><input type="checkbox" id="blockInput" checked={blockInput} onChange={(e) => setBlockInput(e.target.checked)} className="rounded" /><label htmlFor="blockInput" className="text-sm">Block input while showing</label></div>
+        
+        <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ minHeight: 0 }}>
+          {filteredActions.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <div className="text-4xl mb-2">🔍</div>
+              <p>No actions in this category</p>
             </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-3 gap-3">
+                {filteredActions.map(action => (
+                  <button 
+                    key={action.id} 
+                    onClick={() => setSelectedAction(action.id)} 
+                    className={`p-4 rounded-lg border-2 text-center transition-all relative ${
+                      selectedAction === action.id 
+                        ? 'border-blue-500 bg-blue-50 shadow-md scale-105' 
+                        : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                    }`}
+                  >
+                    {selectedAction === action.id && (
+                      <div className="absolute top-2 right-2 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                        <Check size={12} className="text-white" />
+                      </div>
+                    )}
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="text-2xl">{action.icon}</div>
+                      <span className="text-sm font-medium">{action.name}</span>
+                      {actionDescriptions[action.id] && (
+                        <span className="text-xs text-gray-500 mt-1">{actionDescriptions[action.id]}</span>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+              
+              {selectedAction === 'show_dialog' && (
+                <div className="space-y-3 p-4 bg-blue-50 rounded-lg border-2 border-blue-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <MessageSquare size={16} className="text-blue-600" />
+                    <span className="text-sm font-medium text-blue-900">Dialog Configuration</span>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Dialog ID</label>
+                    <input 
+                      type="text" 
+                      value={dialogId} 
+                      onChange={(e) => setDialogId(e.target.value)} 
+                      placeholder="e.g., 1001199, ftue_intro_chris" 
+                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-sm"
+                    />
+                    <div className="mt-1 text-xs text-gray-500">Enter the dialog ID from your game system</div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Character</label>
+                    <select 
+                      value={character} 
+                      onChange={(e) => setCharacter(e.target.value)} 
+                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-sm"
+                    >
+                      <option>Chris</option>
+                      <option>Kara</option>
+                      <option>Benny</option>
+                      <option>Leslie</option>
+                      <option>Mateo</option>
+                      <option>Tyrell</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2 p-3 bg-white rounded border">
+                    <input 
+                      type="checkbox" 
+                      id="blockInput" 
+                      checked={blockInput} 
+                      onChange={(e) => setBlockInput(e.target.checked)} 
+                      className="rounded"
+                    />
+                    <label htmlFor="blockInput" className="text-sm text-gray-700">Block player input while dialog is showing</label>
+                  </div>
+                </div>
+              )}
+              
+              {selectedAction && selectedAction !== 'show_dialog' && (
+                <div className="p-4 bg-green-50 rounded-lg border-2 border-green-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle2 size={16} className="text-green-600" />
+                    <span className="text-sm font-medium text-green-900">Action Selected</span>
+                  </div>
+                  <p className="text-sm text-green-700">
+                    You can configure additional details for this action after adding it to the step.
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </div>
-        <div className="p-4 border-t bg-gray-50 flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-lg">Cancel</button>
-          <button onClick={handleAdd} className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2"><Plus size={16} />{buttonText}</button>
+        
+        <div className="p-4 border-t bg-white flex justify-end gap-2 flex-shrink-0 shadow-lg">
+          <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-lg transition-colors">Cancel</button>
+          <button 
+            onClick={handleAdd} 
+            disabled={!selectedAction}
+            className={`px-6 py-2 rounded-lg flex items-center gap-2 transition-all font-medium ${
+              selectedAction
+                ? 'bg-blue-500 text-white hover:bg-blue-600 shadow-md hover:shadow-lg' 
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            <Plus size={16} />{buttonText}
+          </button>
         </div>
       </div>
     </div>
@@ -3009,10 +3206,98 @@ export default function FTUEConfigUI() {
               setShowStepContextModal(true);
             }} className="w-full p-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-400 hover:text-blue-500 flex items-center justify-center gap-2"><Plus size={16} />Add Step</button>
             <div className="pt-2">
-              <h4 className="text-xs font-medium text-gray-400 mb-2">TEMPLATES</h4>
-              {['Dialog Step', 'Highlight Step', 'Wait for Action', 'Analytics Only'].map(template => (
-                <div key={template} className="p-2 text-sm text-gray-600 hover:bg-gray-50 rounded cursor-grab flex items-center gap-2" draggable><GripVertical size={14} className="text-gray-400" />{template}</div>
-              ))}
+              <h4 className="text-xs font-medium text-gray-400 mb-2 uppercase">Quick Templates</h4>
+              <div className="space-y-2">
+                <button
+                  onClick={() => {
+                    const templateStep = {
+                      id: `step_${Date.now()}`,
+                      name: 'Show Dialog',
+                      legacy: steps.length,
+                      type: 'ui',
+                      context: { contextType: 'chapter', contextValue: '1' },
+                      actions: [{
+                        Type: 'ShowDialog',
+                        Target: 'Null',
+                        TargetDialog: { DialogId: 1001199 }
+                      }],
+                      completionConditions: [{ type: 'dialog_closed', value: 'dialog' }]
+                    };
+                    setSteps([...steps, templateStep]);
+                    showToast('Dialog step template added!');
+                  }}
+                  className="w-full p-3 text-left text-sm bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-all"
+                >
+                  <div className="font-medium text-blue-900 mb-1">💬 Show Dialog</div>
+                  <div className="text-xs text-blue-600">Display a dialog to the player</div>
+                </button>
+                <button
+                  onClick={() => {
+                    const templateStep = {
+                      id: `step_${Date.now()}`,
+                      name: 'Highlight Generator',
+                      legacy: steps.length,
+                      type: 'ui',
+                      context: { contextType: 'feature', contextValue: 'Disco' },
+                      actions: [
+                        {
+                          Type: 'ShowTooltip',
+                          Target: 'BoardActiveGenerator',
+                          TypeShowTooltip: { Type: 'Finger', InfoMessagePosition: 'Top' }
+                        },
+                        {
+                          Type: 'HighlightElement',
+                          Target: 'BoardActiveGenerator',
+                          TypeHighlight: { Type: 'Shader', IsCommonAmongSteps: false }
+                        }
+                      ],
+                      completionConditions: [{ type: 'user_action', value: 'click' }]
+                    };
+                    setSteps([...steps, templateStep]);
+                    showToast('Highlight step template added!');
+                  }}
+                  className="w-full p-3 text-left text-sm bg-green-50 hover:bg-green-100 rounded-lg border border-green-200 transition-all"
+                >
+                  <div className="font-medium text-green-900 mb-1">👆 Highlight & Tooltip</div>
+                  <div className="text-xs text-green-600">Show finger animation and highlight</div>
+                </button>
+                <button
+                  onClick={() => {
+                    const templateStep = {
+                      id: `step_${Date.now()}`,
+                      name: 'Add Item to Board',
+                      legacy: steps.length,
+                      type: 'game',
+                      context: { contextType: 'item', contextValue: '399' },
+                      actions: [{
+                        Type: 'AddItemOnBoard',
+                        Target: 'BoardItem',
+                        TargetBoardItem: {
+                          ItemId: 399,
+                          Position: { x: 3, y: 3 }
+                        }
+                      }],
+                      completionConditions: [{ type: 'item_on_board', value: 'BoardItem' }]
+                    };
+                    setSteps([...steps, templateStep]);
+                    showToast('Add item step template added!');
+                  }}
+                  className="w-full p-3 text-left text-sm bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-200 transition-all"
+                >
+                  <div className="font-medium text-purple-900 mb-1">🎁 Add Item</div>
+                  <div className="text-xs text-purple-600">Place an item on the board</div>
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedStep(null);
+                    setShowStepContextModal(true);
+                  }}
+                  className="w-full p-3 text-left text-sm bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-all"
+                >
+                  <div className="font-medium text-gray-900 mb-1">➕ Custom Step</div>
+                  <div className="text-xs text-gray-600">Create a step from scratch</div>
+                </button>
+              </div>
             </div>
           </div>
         </div>
