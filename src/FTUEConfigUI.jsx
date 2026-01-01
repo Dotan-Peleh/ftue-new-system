@@ -1991,9 +1991,30 @@ export default function FTUEConfigUI() {
     // Load steps for this flow - if flow has steps data, use it, otherwise initialize empty
     // In a real app, you'd fetch this from an API
     // For now, we'll check if flow has a steps property or initialize empty array
-    if (flow.stepsData && Array.isArray(flow.stepsData)) {
+    if (flow.stepsData && Array.isArray(flow.stepsData) && flow.stepsData.length > 0) {
+      // Flow has saved steps data, load it
       setSteps(flow.stepsData);
     } else {
+      // Check if flow has steps count but no stepsData - this means it's an existing flow
+      // that hasn't been loaded yet. Try to load from localStorage as fallback
+      if (flow.steps && flow.steps > 0) {
+        // Try to load from localStorage
+        try {
+          const savedData = localStorage.getItem(`flow_${flow.id}_steps`);
+          if (savedData) {
+            const parsedSteps = JSON.parse(savedData);
+            if (Array.isArray(parsedSteps) && parsedSteps.length > 0) {
+              setSteps(parsedSteps);
+              // Update the flow with the loaded stepsData
+              setFlows(flows.map(f => f && f.id === flow.id ? { ...f, stepsData: parsedSteps } : f));
+              setView('editor');
+              return;
+            }
+          }
+        } catch (e) {
+          console.error('Error loading steps from localStorage:', e);
+        }
+      }
       // Initialize with empty steps for new flow or flow without steps data
       setSteps([]);
     }
