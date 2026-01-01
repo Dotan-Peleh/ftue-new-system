@@ -87,6 +87,58 @@ const StepNode = ({ step, selected, onClick, onDelete, onDragStart, onDragOver, 
   );
 };
 
+const ActionCard = ({ action, index, onEdit, onDelete }) => {
+  const [expanded, setExpanded] = useState(false);
+  const actionObj = typeof action === 'object' ? action : { Type: action, Target: 'Null' };
+  
+  return (
+    <div className="border rounded-lg overflow-hidden">
+      <div className="flex items-center gap-2 p-2 bg-gray-50">
+        <GripVertical size={14} className="text-gray-400 cursor-grab" />
+        <button onClick={() => setExpanded(!expanded)} className="flex-1 text-left text-sm font-medium flex items-center gap-2">
+          <ChevronRight size={12} className={`transition-transform ${expanded ? 'rotate-90' : ''}`} />
+          <span>{actionObj.Type || 'Unknown Action'}</span>
+          {actionObj.Target && actionObj.Target !== 'Null' && (
+            <span className="text-xs text-gray-500">→ {actionObj.Target}</span>
+          )}
+        </button>
+        <button onClick={() => onEdit && onEdit(index, action)} className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-blue-500" title="Edit Action"><Edit3 size={12} /></button>
+        <button onClick={() => onDelete && onDelete(index)} className="p-1 hover:bg-red-100 rounded text-gray-400 hover:text-red-500"><Trash2 size={12} /></button>
+      </div>
+      {expanded && (
+        <div className="p-3 bg-white space-y-2 border-t">
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div><span className="text-gray-500">Type:</span> <span className="font-medium">{actionObj.Type}</span></div>
+            <div><span className="text-gray-500">Target:</span> <span className="font-medium">{actionObj.Target || 'Null'}</span></div>
+            {actionObj.TargetDialog && <div className="col-span-2"><span className="text-gray-500">Dialog ID:</span> <span className="font-medium">{actionObj.TargetDialog.DialogId}</span></div>}
+            {actionObj.TargetCharacter && <div><span className="text-gray-500">Character:</span> <span className="font-medium">{actionObj.TargetCharacter.CharacterId}</span></div>}
+            {actionObj.TargetBoardItem && <div className="col-span-2"><span className="text-gray-500">Board Item ID:</span> <span className="font-medium">{actionObj.TargetBoardItem.ItemId}</span> {actionObj.TargetBoardItem.Position && <span className="text-gray-400">({actionObj.TargetBoardItem.Position.x}, {actionObj.TargetBoardItem.Position.y})</span>}</div>}
+            {actionObj.TargetBoardTask && <div><span className="text-gray-500">Board Task ID:</span> <span className="font-medium">{actionObj.TargetBoardTask.BoardTaskId}</span></div>}
+            {actionObj.TargetScapeTask && <div><span className="text-gray-500">Scape Task ID:</span> <span className="font-medium">{actionObj.TargetScapeTask.ScapeTaskId}</span></div>}
+            {actionObj.TypeShowTooltip && (
+              <div className="col-span-2 space-y-1">
+                <div><span className="text-gray-500">Tooltip Type:</span> <span className="font-medium">{actionObj.TypeShowTooltip.Type}</span></div>
+                <div><span className="text-gray-500">Position:</span> <span className="font-medium">{actionObj.TypeShowTooltip.InfoMessagePosition}</span></div>
+                {actionObj.TypeShowTooltip.HandRotation && <div><span className="text-gray-500">Hand Rotation:</span> <span className="font-medium">{actionObj.TypeShowTooltip.HandRotation}</span></div>}
+              </div>
+            )}
+            {actionObj.TypeHighlight && <div><span className="text-gray-500">Highlight Type:</span> <span className="font-medium">{actionObj.TypeHighlight.Type}</span></div>}
+            {actionObj.TypeFade && <div><span className="text-gray-500">Fade Type:</span> <span className="font-medium">{actionObj.TypeFade.Type}</span></div>}
+            {actionObj.TypeIdleHelp && <div><span className="text-gray-500">Idle Help Delay:</span> <span className="font-medium">{actionObj.TypeIdleHelp.IdleHelpDelay}s</span></div>}
+            {actionObj.TargetPopup && <div><span className="text-gray-500">Popup Type:</span> <span className="font-medium">{actionObj.TargetPopup.GamePopupType}</span></div>}
+            {actionObj.TypeShowCutScene && <div className="col-span-2"><span className="text-gray-500">Cutscene ID:</span> <span className="font-medium">{actionObj.TypeShowCutScene.CutsceneId}</span></div>}
+            {actionObj.TargetAwaitedAnimation && actionObj.TargetAwaitedAnimation.AwaitedAnimations && (
+              <div className="col-span-2"><span className="text-gray-500">Awaited Animation:</span> <span className="font-medium">{actionObj.TargetAwaitedAnimation.AwaitedAnimations[0]?.AwaitedAnimation}</span></div>
+            )}
+            {actionObj.TargetGroup && <div className="col-span-2"><span className="text-gray-500">Group:</span> <span className="font-medium">{actionObj.TargetGroup.GroupName}</span></div>}
+            {actionObj.TargetInfoText && <div className="col-span-2"><span className="text-gray-500">Info Text ID:</span> <span className="font-medium">{actionObj.TargetInfoText.TextId}</span></div>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const PropertiesPanel = ({ step, onClose, onUpdate, onAddCondition, onAddAction, onEditAction, onDeleteAction, allSteps }) => {
   const [expanded, setExpanded] = useState({ entry: false, actions: true, completion: true, exit: false });
   const [stepData, setStepData] = useState(step || {});
@@ -154,12 +206,13 @@ const PropertiesPanel = ({ step, onClose, onUpdate, onAddCondition, onAddAction,
         <Section title="Actions On Enter" name="actions" badge={(stepData.actions || []).length}>
           <div className="space-y-2">
             {(stepData.actions || []).map((action, i) => (
-              <div key={i} className="flex items-center gap-2 p-2 bg-gray-50 rounded border">
-                <GripVertical size={14} className="text-gray-400 cursor-grab" />
-                <span className="flex-1 text-sm">{String(action).replace(/_/g, ' ')}</span>
-                <button onClick={() => onEditAction && onEditAction(stepData, i, action)} className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-blue-500" title="Edit Action"><Edit3 size={12} /></button>
-                <button onClick={() => onDeleteAction && onDeleteAction(stepData, i)} className="p-1 hover:bg-red-100 rounded text-gray-400 hover:text-red-500"><Trash2 size={12} /></button>
-              </div>
+              <ActionCard
+                key={i}
+                action={action}
+                index={i}
+                onEdit={(idx, act) => onEditAction && onEditAction(stepData, idx, act)}
+                onDelete={(idx) => onDeleteAction && onDeleteAction(stepData, idx)}
+              />
             ))}
             <button onClick={() => onAddAction && onAddAction(stepData)} className="w-full py-2 border-2 border-dashed border-gray-300 rounded text-sm text-gray-500 hover:border-blue-400 hover:text-blue-500 flex items-center justify-center gap-1"><Plus size={14} />Add Action</button>
           </div>
@@ -724,6 +777,226 @@ const ActionDetailsModal = ({ onClose, action, step, onUpdate }) => {
   );
 };
 
+const FlowPreview = ({ steps, onClose }) => {
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [activeAnimations, setActiveAnimations] = useState({});
+  const [showDialog, setShowDialog] = useState(null);
+  const [highlightedElement, setHighlightedElement] = useState(null);
+  const [shaded, setShaded] = useState(false);
+  
+  const currentStep = steps[currentStepIndex];
+  const isLastStep = currentStepIndex >= steps.length - 1;
+  
+  useEffect(() => {
+    if (currentStep && currentStep.actions) {
+      // Reset animations
+      setActiveAnimations({});
+      setShowDialog(null);
+      setHighlightedElement(null);
+      setShaded(false);
+      
+      // Process actions
+      currentStep.actions.forEach((action, i) => {
+        const actionObj = typeof action === 'object' ? action : { Type: action, Target: 'Null' };
+        
+        setTimeout(() => {
+          if (actionObj.Type === 'ShowDialog') {
+            setShowDialog({
+              id: actionObj.TargetDialog?.DialogId || 0,
+              character: actionObj.TargetCharacter?.CharacterId || 'Chris'
+            });
+          }
+          if (actionObj.Type === 'ShowTooltip') {
+            const target = actionObj.Target || 'Null';
+            if (target === 'BoardItem' || target === 'BoardActiveGenerator') {
+              setActiveAnimations(prev => ({
+                ...prev,
+                [target]: {
+                  type: 'finger',
+                  position: actionObj.TargetBoardItem?.Position || { x: 2, y: 2 },
+                  tooltipType: actionObj.TypeShowTooltip?.Type || 'Tap'
+                }
+              }));
+            }
+          }
+          if (actionObj.Type === 'HighlightElement') {
+            setHighlightedElement(actionObj.Target || 'Null');
+          }
+          if (actionObj.Type === 'FadeIn' || actionObj.Target === 'BoardScreen') {
+            setShaded(true);
+          }
+        }, i * 300);
+      });
+    }
+  }, [currentStepIndex, currentStep]);
+  
+  const handleNext = () => {
+    if (isLastStep) {
+      onClose();
+    } else {
+      setCurrentStepIndex(prev => prev + 1);
+    }
+  };
+  
+  const handleClick = (target) => {
+    // Check if current step has completion condition for this target
+    const completionConditions = currentStep?.completionConditions || [];
+    const canComplete = completionConditions.some(cond => 
+      cond.type === 'user_action' && cond.value === 'click'
+    );
+    
+    if (canComplete) {
+      // Clear animations
+      setActiveAnimations({});
+      setShowDialog(null);
+      setHighlightedElement(null);
+      setShaded(false);
+      
+      // Move to next step
+      setTimeout(() => {
+        handleNext();
+      }, 300);
+    }
+  };
+  
+  // Generate board grid (7x7)
+  const boardSize = 7;
+  const boardItems = [];
+  for (let y = 0; y < boardSize; y++) {
+    for (let x = 0; x < boardSize; x++) {
+      boardItems.push({ x, y, id: `${x}-${y}` });
+    }
+  }
+  
+  return (
+    <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl shadow-2xl w-[90vw] h-[90vh] max-w-6xl flex flex-col overflow-hidden">
+        <div className="p-4 border-b flex items-center justify-between bg-gray-50">
+          <div>
+            <h3 className="font-semibold text-lg">Flow Preview</h3>
+            <p className="text-sm text-gray-500">Step {currentStepIndex + 1} of {steps.length}: {currentStep?.name || 'Unnamed Step'}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex gap-1">
+              {steps.map((_, i) => (
+                <div key={i} className={`w-2 h-2 rounded-full ${i === currentStepIndex ? 'bg-blue-500' : i < currentStepIndex ? 'bg-green-500' : 'bg-gray-300'}`} />
+              ))}
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded"><X size={20} /></button>
+          </div>
+        </div>
+        
+        <div className="flex-1 relative bg-gradient-to-br from-blue-50 to-purple-50 overflow-hidden">
+          {/* Board Container */}
+          <div className="absolute inset-0 flex items-center justify-center p-8">
+            <div className="relative">
+              {/* Board Grid */}
+              <div className="grid grid-cols-7 gap-2 bg-white p-4 rounded-lg shadow-lg">
+                {boardItems.map((item) => {
+                  const isHighlighted = highlightedElement === 'BoardItem' || highlightedElement === item.id;
+                  const hasFinger = activeAnimations['BoardItem'] || activeAnimations['BoardActiveGenerator'];
+                  const fingerPos = hasFinger ? (activeAnimations['BoardItem']?.position || activeAnimations['BoardActiveGenerator']?.position || { x: 2, y: 2 }) : null;
+                  const showFinger = fingerPos && fingerPos.x === item.x && fingerPos.y === item.y;
+                  
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => handleClick(item.id)}
+                      className={`
+                        w-16 h-16 border-2 rounded-lg flex items-center justify-center cursor-pointer transition-all
+                        ${isHighlighted ? 'border-yellow-400 bg-yellow-100 ring-4 ring-yellow-300' : 'border-gray-200 bg-gray-50'}
+                        ${showFinger ? 'ring-4 ring-blue-300' : ''}
+                        hover:bg-gray-100
+                      `}
+                    >
+                      {/* Generator icon in center */}
+                      {item.x === 3 && item.y === 3 && (
+                        <div className="text-2xl">⚙️</div>
+                      )}
+                      
+                      {/* Finger animation */}
+                      {showFinger && (
+                        <div className="absolute animate-bounce pointer-events-none">
+                          <div className="text-4xl">👆</div>
+                          <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                            {activeAnimations['BoardItem']?.tooltipType === 'Tap' ? 'Tap here' : 'Info'}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Item indicator */}
+                      {item.x !== 3 || item.y !== 3 ? (
+                        <div className="text-xs text-gray-400">•</div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {/* Shade overlay */}
+              {shaded && (
+                <div className="absolute inset-0 bg-black/40 rounded-lg pointer-events-none" />
+              )}
+            </div>
+          </div>
+          
+          {/* Dialog */}
+          {showDialog && (
+            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-white rounded-lg shadow-2xl p-6 max-w-md border-2 border-blue-300 animate-fadeIn">
+              <div className="flex items-start gap-4">
+                <div className="text-4xl">👤</div>
+                <div className="flex-1">
+                  <div className="font-semibold mb-2">{showDialog.character}</div>
+                  <div className="text-gray-700">Dialog ID: {showDialog.id}</div>
+                  <div className="text-sm text-gray-500 mt-2">This is a preview of the dialog that would appear.</div>
+                </div>
+              </div>
+              <button
+                onClick={handleClick('dialog')}
+                className="mt-4 w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600"
+              >
+                Continue
+              </button>
+            </div>
+          )}
+          
+          {/* Step Info Overlay */}
+          <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm rounded-lg p-4 shadow-lg border">
+            <div className="text-sm font-medium mb-2">Current Step Actions:</div>
+            <div className="space-y-1 text-xs">
+              {(currentStep?.actions || []).slice(0, 3).map((action, i) => {
+                const actionObj = typeof action === 'object' ? action : { Type: action };
+                return (
+                  <div key={i} className="text-gray-600">• {actionObj.Type}</div>
+                );
+              })}
+              {(currentStep?.actions || []).length > 3 && (
+                <div className="text-gray-400">+ {(currentStep?.actions || []).length - 3} more</div>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        <div className="p-4 border-t bg-gray-50 flex items-center justify-between">
+          <button
+            onClick={() => setCurrentStepIndex(prev => Math.max(0, prev - 1))}
+            disabled={currentStepIndex === 0}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Previous Step
+          </button>
+          <button
+            onClick={handleNext}
+            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+          >
+            {isLastStep ? 'Finish Preview' : 'Next Step'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ActionBuilderModal = ({ onClose, onAdd, step, existingAction, actionIndex, isEdit }) => {
   // Initialize with existing action data if editing
   const getInitialAction = () => {
@@ -962,6 +1235,7 @@ export default function FTUEConfigUI() {
   const [showActionDetailsModal, setShowActionDetailsModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showValidationModal, setShowValidationModal] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [filterTab, setFilterTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [toast, setToast] = useState(null);
@@ -1184,7 +1458,11 @@ export default function FTUEConfigUI() {
   };
   
   const handlePreview = () => {
-    showToast('Preview mode - This would show a live preview of the flow', 'info');
+    if (steps.length === 0) {
+      showToast('Add at least one step to preview the flow', 'warning');
+      return;
+    }
+    setShowPreview(true);
   };
   
   const handleFlowNameChange = (name) => {
@@ -1377,6 +1655,7 @@ export default function FTUEConfigUI() {
       {showValidationModal && <ValidationModal onClose={() => {
         setShowValidationModal(false);
       }} steps={steps} />}
+      {showPreview && <FlowPreview steps={steps} onClose={() => setShowPreview(false)} />}
     </div>
   );
 }
