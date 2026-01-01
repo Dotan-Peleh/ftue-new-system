@@ -859,12 +859,52 @@ const FlowPreview = ({ steps, onClose }) => {
     }
   };
   
-  // Generate board grid (7x7)
+  // Extract all configured board items from actions
+  const configuredItems = new Map();
+  const configuredPositions = new Set();
+  
+  steps.forEach(step => {
+    (step.actions || []).forEach(action => {
+      const actionObj = typeof action === 'object' ? action : { Type: action, Target: 'Null' };
+      
+      if (actionObj.TargetBoardItem && actionObj.TargetBoardItem.ItemId) {
+        const pos = actionObj.TargetBoardItem.Position || { x: -1, y: -1 };
+        const key = `${pos.x}-${pos.y}`;
+        if (pos.x >= 0 && pos.y >= 0) {
+          configuredItems.set(key, {
+            itemId: actionObj.TargetBoardItem.ItemId,
+            position: pos,
+            step: step.name
+          });
+          configuredPositions.add(key);
+        }
+      }
+      
+      if (actionObj.Target === 'BoardActiveGenerator') {
+        configuredItems.set('generator', {
+          itemId: 'Generator',
+          position: { x: 3, y: 3 },
+          step: step.name
+        });
+        configuredPositions.add('3-3');
+      }
+    });
+  });
+  
+  // Generate board grid (7x7) with configured items
   const boardSize = 7;
   const boardItems = [];
   for (let y = 0; y < boardSize; y++) {
     for (let x = 0; x < boardSize; x++) {
-      boardItems.push({ x, y, id: `${x}-${y}` });
+      const key = `${x}-${y}`;
+      const configuredItem = configuredItems.get(key);
+      boardItems.push({ 
+        x, 
+        y, 
+        id: key,
+        configured: configuredItem,
+        isGenerator: x === 3 && y === 3
+      });
     }
   }
   
@@ -893,41 +933,51 @@ const FlowPreview = ({ steps, onClose }) => {
               {/* Board Grid */}
               <div className="grid grid-cols-7 gap-2 bg-white p-4 rounded-lg shadow-lg">
                 {boardItems.map((item) => {
-                  const isHighlighted = highlightedElement === 'BoardItem' || highlightedElement === item.id;
+                  const isHighlighted = highlightedElement === 'BoardItem' || highlightedElement === item.id || (highlightedElement === 'BoardActiveGenerator' && item.isGenerator);
                   const hasFinger = activeAnimations['BoardItem'] || activeAnimations['BoardActiveGenerator'];
                   const fingerPos = hasFinger ? (activeAnimations['BoardItem']?.position || activeAnimations['BoardActiveGenerator']?.position || { x: 2, y: 2 }) : null;
                   const showFinger = fingerPos && fingerPos.x === item.x && fingerPos.y === item.y;
+                  const configuredItem = item.configured;
                   
                   return (
                     <div
                       key={item.id}
                       onClick={() => handleClick(item.id)}
                       className={`
-                        w-16 h-16 border-2 rounded-lg flex items-center justify-center cursor-pointer transition-all
+                        w-16 h-16 border-2 rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all relative
                         ${isHighlighted ? 'border-yellow-400 bg-yellow-100 ring-4 ring-yellow-300' : 'border-gray-200 bg-gray-50'}
                         ${showFinger ? 'ring-4 ring-blue-300' : ''}
+                        ${configuredItem ? 'bg-blue-50 border-blue-300' : ''}
                         hover:bg-gray-100
                       `}
                     >
-                      {/* Generator icon in center */}
-                      {item.x === 3 && item.y === 3 && (
+                      {/* Generator icon */}
+                      {item.isGenerator && (
                         <div className="text-2xl">⚙️</div>
+                      )}
+                      
+                      {/* Configured item display */}
+                      {configuredItem && !item.isGenerator && (
+                        <>
+                          <div className="text-xs font-bold text-blue-600">ID: {configuredItem.itemId}</div>
+                          <div className="text-[10px] text-blue-400">({configuredItem.position.x},{configuredItem.position.y})</div>
+                        </>
                       )}
                       
                       {/* Finger animation */}
                       {showFinger && (
-                        <div className="absolute animate-bounce pointer-events-none">
+                        <div className="absolute inset-0 flex items-center justify-center animate-bounce pointer-events-none z-10">
                           <div className="text-4xl">👆</div>
                           <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                            {activeAnimations['BoardItem']?.tooltipType === 'Tap' ? 'Tap here' : 'Info'}
+                            {activeAnimations['BoardItem']?.tooltipType === 'Tap' ? 'Tap here' : activeAnimations['BoardItem']?.tooltipType || 'Info'}
                           </div>
                         </div>
                       )}
                       
-                      {/* Item indicator */}
-                      {item.x !== 3 || item.y !== 3 ? (
-                        <div className="text-xs text-gray-400">•</div>
-                      ) : null}
+                      {/* Empty cell indicator */}
+                      {!configuredItem && !item.isGenerator && (
+                        <div className="text-xs text-gray-300">•</div>
+                      )}
                     </div>
                   );
                 })}
@@ -1221,13 +1271,7 @@ export default function FTUEConfigUI() {
     { id: 'recipes_intro', name: 'Recipes Feature Intro', legacy: 14, steps: 7, status: 'draft', priority: 50, modified: 'Just now' },
     { id: 'mode_2_unlock', name: 'Mode 2 Unlock', legacy: 10, steps: 7, status: 'inactive', priority: 40, modified: '2 weeks ago' }
   ]);
-  const [steps, setSteps] = useState([
-    { id: 'intro_dialog', name: 'Intro Dialog', legacy: 0, type: 'ui', actions: ['show_dialog', 'send_analytics'], completionConditions: [{ type: 'user_action', value: 'click' }] },
-    { id: 'highlight_board', name: 'Highlight Board Button', legacy: 2, type: 'ui', actions: ['shade_screen', 'highlight_ui', 'show_finger'], completionConditions: [{ type: 'user_action', value: 'click' }] },
-    { id: 'first_tap', name: 'First Generator Tap', legacy: 4, type: 'game', actions: ['show_finger', 'show_dialog_bubble'], completionConditions: [{ type: 'user_action', value: 'click' }] },
-    { id: 'first_merge', name: 'First Merge', legacy: 5, type: 'game', actions: ['show_finger'], completionConditions: [{ type: 'user_action', value: 'click' }] },
-    { id: 'task_complete', name: 'Task Complete', legacy: 7, type: 'ui', actions: ['shade_screen', 'highlight_ui'], completionConditions: [{ type: 'user_action', value: 'click' }] }
-  ]);
+  const [steps, setSteps] = useState([]);
   const [selectedFlow, setSelectedFlow] = useState(null);
   const [selectedStep, setSelectedStep] = useState(null);
   const [showConditionModal, setShowConditionModal] = useState(false);
@@ -1542,6 +1586,57 @@ export default function FTUEConfigUI() {
       </header>
       
       <div className="flex-1 flex overflow-hidden">
+        {steps.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center bg-gray-50">
+            <div className="max-w-2xl mx-auto p-8 text-center">
+              <div className="mb-6">
+                <div className="text-6xl mb-4">🎯</div>
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">Create Your First Step</h2>
+                <p className="text-gray-600 mb-8">Start building your FTUE flow step by step</p>
+              </div>
+              <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <h3 className="font-semibold text-lg mb-4 text-left">Step-by-Step Guide:</h3>
+                <div className="space-y-4 text-left">
+                  <div className="flex gap-4">
+                    <div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold">1</div>
+                    <div>
+                      <div className="font-medium mb-1">Add Your First Step</div>
+                      <div className="text-sm text-gray-600">Click "Add Step" to create a new step in your flow</div>
+                    </div>
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold">2</div>
+                    <div>
+                      <div className="font-medium mb-1">Configure Actions</div>
+                      <div className="text-sm text-gray-600">Add actions like ShowDialog, ShowTooltip, HighlightElement, etc.</div>
+                    </div>
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold">3</div>
+                    <div>
+                      <div className="font-medium mb-1">Set Completion Conditions</div>
+                      <div className="text-sm text-gray-600">Define when the step is complete (user click, item on board, etc.)</div>
+                    </div>
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold">4</div>
+                    <div>
+                      <div className="font-medium mb-1">Preview Your Flow</div>
+                      <div className="text-sm text-gray-600">Use the Preview button to see how your flow will behave</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => {
+                setSelectedStep(null);
+                setShowActionModal(true);
+              }} className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2 mx-auto text-lg font-medium">
+                <Plus size={20} />Add Your First Step
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
         <div className="w-64 bg-white border-r overflow-y-auto">
           <div className="p-3 border-b"><h3 className="font-medium text-sm text-gray-500 uppercase tracking-wide">Step Library</h3></div>
           <div className="p-3 space-y-2">
@@ -1601,6 +1696,8 @@ export default function FTUEConfigUI() {
           onDeleteAction={handleDeleteAction}
           allSteps={steps}
         />
+          </>
+        )}
       </div>
       
       {showConditionModal && <ConditionBuilderModal onClose={() => {
