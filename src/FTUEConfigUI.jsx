@@ -967,44 +967,60 @@ const FlowPreview = ({ steps, onClose }) => {
   const [showDialog, setShowDialog] = useState(null);
   const [highlightedElement, setHighlightedElement] = useState(null);
   const [shaded, setShaded] = useState(false);
+  const [lockedElements, setLockedElements] = useState(new Set());
+  const [showPopup, setShowPopup] = useState(null);
+  const [showCutscene, setShowCutscene] = useState(null);
+  const [waitingForAnimation, setWaitingForAnimation] = useState(null);
+  const [idleHelpActive, setIdleHelpActive] = useState(false);
+  const [addedItems, setAddedItems] = useState(new Map());
   
   const currentStep = steps[currentStepIndex];
   const isLastStep = currentStepIndex >= steps.length - 1;
   
   useEffect(() => {
+    // Always reset on step change
+    setActiveAnimations({});
+    setShowDialog(null);
+    setHighlightedElement(null);
+    setShaded(false);
+    setLockedElements(new Set());
+    setShowPopup(null);
+    setShowCutscene(null);
+    setWaitingForAnimation(null);
+    setIdleHelpActive(false);
+    
     if (currentStep && currentStep.actions && currentStep.actions.length > 0) {
-      // Reset animations
-      setActiveAnimations({});
-      setShowDialog(null);
-      setHighlightedElement(null);
-      setShaded(false);
-      
       // Process actions with proper delays
       currentStep.actions.forEach((action, i) => {
         // Handle both string and object formats
         let actionObj;
         if (typeof action === 'string') {
           // Convert old string format to object format
-          if (action === 'show_dialog') {
-            actionObj = { Type: 'ShowDialog', Target: 'Null' };
-          } else if (action === 'show_finger' || action === 'show_tooltip') {
-            actionObj = { Type: 'ShowTooltip', Target: 'BoardActiveGenerator' };
-          } else if (action === 'highlight_ui' || action === 'highlight_element') {
-            actionObj = { Type: 'HighlightElement', Target: 'BoardScreen' };
-          } else if (action === 'shade_screen' || action === 'fade_in') {
-            actionObj = { Type: 'FadeIn', Target: 'BoardScreen' };
-          } else {
-            actionObj = { Type: action.replace(/_/g, ''), Target: 'Null' };
-          }
+          const typeMap = {
+            'show_dialog': { Type: 'ShowDialog', Target: 'Null' },
+            'show_finger': { Type: 'ShowTooltip', Target: 'BoardActiveGenerator' },
+            'show_tooltip': { Type: 'ShowTooltip', Target: 'BoardActiveGenerator' },
+            'highlight_ui': { Type: 'HighlightElement', Target: 'BoardScreen' },
+            'highlight_element': { Type: 'HighlightElement', Target: 'BoardScreen' },
+            'shade_screen': { Type: 'FadeIn', Target: 'BoardScreen' },
+            'fade_in': { Type: 'FadeIn', Target: 'BoardScreen' }
+          };
+          actionObj = typeMap[action] || { Type: action.replace(/_/g, ''), Target: 'Null' };
         } else {
           actionObj = action;
         }
         
+        // Process immediately for first action, then delay others
+        const delay = i === 0 ? 100 : i * 400;
+        
         setTimeout(() => {
-          // ShowDialog action
-          if (actionObj.Type === 'ShowDialog' || actionObj.Type === 'show_dialog') {
-            const dialogId = actionObj.TargetDialog?.DialogId || actionObj.dialogId || 0;
-            const character = actionObj.TargetCharacter?.CharacterId || actionObj.character || 'Chris';
+          const actionType = actionObj.Type;
+          const target = actionObj.Target || 'Null';
+          
+          // ShowDialog
+          if (actionType === 'ShowDialog') {
+            const dialogId = actionObj.TargetDialog?.DialogId || 0;
+            const character = actionObj.TargetCharacter?.CharacterId || 'Chris';
             setShowDialog({
               id: dialogId,
               character: character,
@@ -1012,60 +1028,220 @@ const FlowPreview = ({ steps, onClose }) => {
             });
           }
           
-          // ShowTooltip action
-          if (actionObj.Type === 'ShowTooltip' || actionObj.Type === 'show_tooltip' || actionObj.Type === 'show_finger') {
-            const target = actionObj.Target || 'BoardActiveGenerator';
+          // HideDialog
+          if (actionType === 'HideDialog') {
+            setShowDialog(null);
+          }
+          
+          // ShowTooltip
+          if (actionType === 'ShowTooltip') {
+            const tooltipType = actionObj.TypeShowTooltip?.Type || 'Tap';
+            const position = actionObj.TypeShowTooltip?.InfoMessagePosition || 'Bottom';
+            
             if (target === 'BoardItem' && actionObj.TargetBoardItem) {
               const pos = actionObj.TargetBoardItem.Position || { x: 2, y: 2 };
               setActiveAnimations(prev => ({
                 ...prev,
-                'BoardItem': {
+                [`BoardItem-${pos.x}-${pos.y}`]: {
                   type: 'finger',
                   position: pos,
-                  tooltipType: actionObj.TypeShowTooltip?.Type || 'Tap',
-                  itemId: actionObj.TargetBoardItem.ItemId
+                  tooltipType: tooltipType,
+                  itemId: actionObj.TargetBoardItem.ItemId,
+                  positionType: position
                 }
               }));
-            } else if (target === 'BoardActiveGenerator' || target === 'Null') {
+            } else if (target === 'BoardActiveGenerator') {
               setActiveAnimations(prev => ({
                 ...prev,
                 'BoardActiveGenerator': {
                   type: 'finger',
                   position: { x: 3, y: 3 },
-                  tooltipType: actionObj.TypeShowTooltip?.Type || 'Tap'
+                  tooltipType: tooltipType,
+                  positionType: position
+                }
+              }));
+            } else if (target === 'Character' && actionObj.TargetCharacter) {
+              const charId = actionObj.TargetCharacter.CharacterId || 'Chris';
+              setActiveAnimations(prev => ({
+                ...prev,
+                [`Character-${charId}`]: {
+                  type: 'character',
+                  characterId: charId,
+                  tooltipType: tooltipType,
+                  infoText: actionObj.TargetInfoText?.TextId
+                }
+              }));
+            } else if (target === 'ScapeTaskMapTooltip' || target === 'ScapeTask') {
+              setActiveAnimations(prev => ({
+                ...prev,
+                'ScapeTask': {
+                  type: 'tooltip',
+                  target: target,
+                  tooltipType: tooltipType
                 }
               }));
             }
           }
           
-          // HighlightElement action
-          if (actionObj.Type === 'HighlightElement' || actionObj.Type === 'highlight_ui' || actionObj.Type === 'highlight_element') {
-            const target = actionObj.Target || 'BoardScreen';
-            setHighlightedElement(target);
+          // HighlightElement
+          if (actionType === 'HighlightElement') {
+            const highlightType = actionObj.TypeHighlight?.Type || 'Shader';
+            setHighlightedElement({
+              target: target,
+              type: highlightType,
+              isCommon: actionObj.TypeHighlight?.IsCommonAmongSteps || false
+            });
           }
           
-          // FadeIn / Shade Screen action
-          if (actionObj.Type === 'FadeIn' || actionObj.Type === 'fade_in' || actionObj.Type === 'shade_screen' || actionObj.Target === 'BoardScreen') {
+          // FadeIn
+          if (actionType === 'FadeIn' || target === 'BoardScreen' || target === 'ScapeScreen') {
             setShaded(true);
           }
           
           // LockUIElement
-          if (actionObj.Type === 'LockUIElement') {
-            setShaded(true);
+          if (actionType === 'LockUIElement') {
+            if (target === 'All') {
+              setShaded(true);
+              setLockedElements(prev => new Set(['All']));
+            } else {
+              setLockedElements(prev => new Set([...prev, target]));
+            }
           }
           
           // UnLockUIElement
-          if (actionObj.Type === 'UnLockUIElement') {
-            // Could show unlock animation
+          if (actionType === 'UnLockUIElement') {
+            if (target === 'All') {
+              setShaded(false);
+              setLockedElements(new Set());
+            } else {
+              setLockedElements(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(target);
+                return newSet;
+              });
+            }
           }
-        }, i * 500); // Increased delay for better visibility
+          
+          // LockBoardItemDrag / UnLockBoardItemDrag
+          if (actionType === 'LockBoardItemDrag') {
+            setLockedElements(prev => new Set([...prev, 'BoardItemDrag']));
+          }
+          if (actionType === 'UnLockBoardItemDrag') {
+            setLockedElements(prev => {
+              const newSet = new Set(prev);
+              newSet.delete('BoardItemDrag');
+              return newSet;
+            });
+          }
+          
+          // LockUIGroup / UnLockUIGroup
+          if (actionType === 'LockUIGroup' && actionObj.TargetGroup) {
+            const groupName = actionObj.TargetGroup.GroupName;
+            setLockedElements(prev => new Set([...prev, `Group-${groupName}`]));
+          }
+          if (actionType === 'UnLockUIGroup' && actionObj.TargetGroup) {
+            const groupName = actionObj.TargetGroup.GroupName;
+            setLockedElements(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(`Group-${groupName}`);
+              return newSet;
+            });
+          }
+          
+          // ShowTargetPopup
+          if (actionType === 'ShowTargetPopup' && actionObj.TargetPopup) {
+            const popupType = actionObj.TargetPopup.GamePopupType;
+            setShowPopup({
+              type: popupType,
+              text: `Popup: ${popupType}`
+            });
+          }
+          
+          // ShowCutscene
+          if (actionType === 'ShowCutscene' && actionObj.TypeShowCutScene) {
+            const cutsceneId = actionObj.TypeShowCutScene.CutsceneId;
+            setShowCutscene({
+              id: cutsceneId,
+              text: `Cutscene: ${cutsceneId}`
+            });
+          }
+          
+          // WaitForAnimationComplete
+          if (actionType === 'WaitForAnimationComplete' && actionObj.TargetAwaitedAnimation) {
+            const animations = actionObj.TargetAwaitedAnimation.AwaitedAnimations || [];
+            if (animations.length > 0) {
+              setWaitingForAnimation({
+                animation: animations[0].AwaitedAnimation,
+                awaitComplete: animations[0].AwaitComplete
+              });
+            }
+          }
+          
+          // WaitForBoardTaskReady
+          if (actionType === 'WaitForBoardTaskReady') {
+            setWaitingForAnimation({
+              animation: 'BoardTaskReady',
+              awaitComplete: true
+            });
+          }
+          
+          // WaitForCollectItem
+          if (actionType === 'WaitForCollectItem' && actionObj.TargetBoardItem) {
+            const itemId = actionObj.TargetBoardItem.ItemId;
+            setWaitingForAnimation({
+              animation: 'CollectItem',
+              itemId: itemId
+            });
+          }
+          
+          // AddItemOnBoard
+          if (actionType === 'AddItemOnBoard' && actionObj.TargetBoardItem) {
+            const pos = actionObj.TargetBoardItem.Position || { x: -1, y: -1 };
+            const itemId = actionObj.TargetBoardItem.ItemId;
+            if (pos.x >= 0 && pos.y >= 0) {
+              setAddedItems(prev => {
+                const newMap = new Map(prev);
+                newMap.set(`${pos.x}-${pos.y}`, {
+                  itemId: itemId,
+                  position: pos
+                });
+                return newMap;
+              });
+            }
+          }
+          
+          // IdleHelp
+          if (actionType === 'IdleHelp' && actionObj.TypeIdleHelp) {
+            const delay = actionObj.TypeIdleHelp.IdleHelpDelay || 2;
+            setIdleHelpActive(true);
+            setTimeout(() => {
+              setIdleHelpActive(false);
+            }, delay * 1000);
+          }
+          
+          // ShowSimpleProceedText
+          if (actionType === 'ShowSimpleProceedText') {
+            setActiveAnimations(prev => ({
+              ...prev,
+              'SimpleProceedText': {
+                type: 'text',
+                text: 'Tap to continue'
+              }
+            }));
+          }
+          
+          // CenteringScapesTooltip
+          if (actionType === 'CenteringScapesTooltip') {
+            setActiveAnimations(prev => ({
+              ...prev,
+              'CenteringScapesTooltip': {
+                type: 'tooltip',
+                text: 'Center Scapes'
+              }
+            }));
+          }
+        }, delay);
       });
-    } else if (currentStep && (!currentStep.actions || currentStep.actions.length === 0)) {
-      // If step has no actions, show empty state
-      setActiveAnimations({});
-      setShowDialog(null);
-      setHighlightedElement(null);
-      setShaded(false);
     }
   }, [currentStepIndex, currentStep]);
   
@@ -1080,9 +1256,37 @@ const FlowPreview = ({ steps, onClose }) => {
   const handleClick = (target) => {
     // Check if current step has completion condition for this target
     const completionConditions = currentStep?.completionConditions || [];
-    const canComplete = completionConditions.some(cond => 
-      cond.type === 'user_action' && cond.value === 'click'
-    );
+    
+    // Check various completion condition types
+    const canComplete = completionConditions.some(cond => {
+      if (cond.type === 'user_action' && cond.value === 'click') {
+        return true;
+      }
+      if (cond.type === 'item_on_board' && target.includes('BoardItem')) {
+        return true;
+      }
+      if (cond.type === 'dialog_closed' && target === 'dialog') {
+        return true;
+      }
+      if (cond.type === 'popup_closed' && target === 'popup') {
+        return true;
+      }
+      return false;
+    });
+    
+    // Also check if waiting for animation and it completes
+    if (waitingForAnimation) {
+      if (waitingForAnimation.animation === 'CollectItem' && target.includes('BoardItem')) {
+        setWaitingForAnimation(null);
+        setTimeout(() => handleNext(), 300);
+        return;
+      }
+      if (waitingForAnimation.animation === 'BoardTaskReady' && target.includes('BoardTask')) {
+        setWaitingForAnimation(null);
+        setTimeout(() => handleNext(), 300);
+        return;
+      }
+    }
     
     if (canComplete) {
       // Clear animations
@@ -1090,6 +1294,7 @@ const FlowPreview = ({ steps, onClose }) => {
       setShowDialog(null);
       setHighlightedElement(null);
       setShaded(false);
+      setWaitingForAnimation(null);
       
       // Move to next step
       setTimeout(() => {
@@ -1098,14 +1303,17 @@ const FlowPreview = ({ steps, onClose }) => {
     }
   };
   
-  // Extract all configured board items from actions
+  // Extract all configured board items, board tasks, and other elements from ALL steps
   const configuredItems = new Map();
-  const configuredPositions = new Set();
+  const configuredBoardTasks = new Map();
+  const configuredBoardItems = new Map(); // For TargetBoardItems (multiple items)
+  const configuredCharacters = new Map();
   
   steps.forEach(step => {
     (step.actions || []).forEach(action => {
       const actionObj = typeof action === 'object' ? action : { Type: action, Target: 'Null' };
       
+      // TargetBoardItem (single item)
       if (actionObj.TargetBoardItem && actionObj.TargetBoardItem.ItemId) {
         const pos = actionObj.TargetBoardItem.Position || { x: -1, y: -1 };
         const key = `${pos.x}-${pos.y}`;
@@ -1113,20 +1321,77 @@ const FlowPreview = ({ steps, onClose }) => {
           configuredItems.set(key, {
             itemId: actionObj.TargetBoardItem.ItemId,
             position: pos,
-            step: step.name
+            step: step.name,
+            actionType: actionObj.Type
           });
-          configuredPositions.add(key);
         }
       }
       
-      if (actionObj.Target === 'BoardActiveGenerator') {
+      // TargetBoardItems (multiple items)
+      if (actionObj.TargetBoardItems && Array.isArray(actionObj.TargetBoardItems)) {
+        actionObj.TargetBoardItems.forEach((item, idx) => {
+          if (item.ItemId && item.Position) {
+            const key = `${item.Position.x}-${item.Position.y}`;
+            configuredBoardItems.set(key, {
+              itemId: item.ItemId,
+              position: item.Position,
+              step: step.name,
+              actionType: actionObj.Type
+            });
+          }
+        });
+      }
+      
+      // TargetBoardTask
+      if (actionObj.TargetBoardTask && actionObj.TargetBoardTask.TaskId) {
+        configuredBoardTasks.set(actionObj.TargetBoardTask.TaskId, {
+          taskId: actionObj.TargetBoardTask.TaskId,
+          step: step.name,
+          actionType: actionObj.Type
+        });
+      }
+      
+      // TargetCharacter
+      if (actionObj.TargetCharacter && actionObj.TargetCharacter.CharacterId) {
+        configuredCharacters.set(actionObj.TargetCharacter.CharacterId, {
+          characterId: actionObj.TargetCharacter.CharacterId,
+          step: step.name,
+          actionType: actionObj.Type
+        });
+      }
+      
+      // BoardActiveGenerator
+      if (actionObj.Target === 'BoardActiveGenerator' || (actionObj.Type === 'ShowTooltip' && actionObj.Target === 'BoardActiveGenerator')) {
         configuredItems.set('generator', {
           itemId: 'Generator',
           position: { x: 3, y: 3 },
-          step: step.name
+          step: step.name,
+          actionType: actionObj.Type
         });
-        configuredPositions.add('3-3');
       }
+      
+      // AddItemOnBoard - items added during preview
+      if (actionObj.Type === 'AddItemOnBoard' && actionObj.TargetBoardItem) {
+        const pos = actionObj.TargetBoardItem.Position || { x: -1, y: -1 };
+        const key = `${pos.x}-${pos.y}`;
+        if (pos.x >= 0 && pos.y >= 0) {
+          configuredItems.set(key, {
+            itemId: actionObj.TargetBoardItem.ItemId,
+            position: pos,
+            step: step.name,
+            actionType: 'AddItemOnBoard',
+            isAdded: true
+          });
+        }
+      }
+    });
+  });
+  
+  // Merge added items from state
+  addedItems.forEach((item, key) => {
+    configuredItems.set(key, {
+      ...item,
+      isAdded: true
     });
   });
   
@@ -1136,7 +1401,7 @@ const FlowPreview = ({ steps, onClose }) => {
   for (let y = 0; y < boardSize; y++) {
     for (let x = 0; x < boardSize; x++) {
       const key = `${x}-${y}`;
-      const configuredItem = configuredItems.get(key);
+      const configuredItem = configuredItems.get(key) || configuredBoardItems.get(key);
       boardItems.push({ 
         x, 
         y, 
@@ -1172,26 +1437,45 @@ const FlowPreview = ({ steps, onClose }) => {
               {/* Board Grid */}
               <div className="grid grid-cols-7 gap-2 bg-white p-4 rounded-lg shadow-lg">
                 {boardItems.map((item) => {
-                  const isHighlighted = highlightedElement === 'BoardItem' || highlightedElement === item.id || 
-                                       (highlightedElement === 'BoardActiveGenerator' && item.isGenerator) ||
-                                       (highlightedElement === 'BoardScreen');
-                  const hasFinger = activeAnimations['BoardItem'] || activeAnimations['BoardActiveGenerator'];
-                  const fingerPos = hasFinger ? (activeAnimations['BoardItem']?.position || activeAnimations['BoardActiveGenerator']?.position || { x: 2, y: 2 }) : null;
-                  const showFinger = fingerPos && fingerPos.x === item.x && fingerPos.y === item.y;
-                  const configuredItem = item.configured;
-                  const fingerAnimation = showFinger ? (activeAnimations['BoardItem'] || activeAnimations['BoardActiveGenerator']) : null;
+                  const itemKey = `${item.x}-${item.y}`;
+                  const configuredItem = configuredItems.get(itemKey) || configuredBoardItems.get(itemKey);
+                  const animationKey = `BoardItem-${item.x}-${item.y}`;
+                  
+                  // Check if this item is highlighted
+                  const highlightObj = typeof highlightedElement === 'object' ? highlightedElement : { target: highlightedElement };
+                  const isHighlighted = 
+                    highlightObj.target === 'BoardItem' || 
+                    highlightObj.target === item.id || 
+                    highlightObj.target === itemKey ||
+                    (highlightObj.target === 'BoardActiveGenerator' && item.isGenerator) ||
+                    highlightObj.target === 'BoardScreen' ||
+                    highlightObj.target === 'All';
+                  
+                  // Check for finger animations
+                  const fingerAnimation = activeAnimations[animationKey] || 
+                                        (item.isGenerator && activeAnimations['BoardActiveGenerator']) ||
+                                        null;
+                  const showFinger = fingerAnimation && fingerAnimation.position && 
+                                    fingerAnimation.position.x === item.x && 
+                                    fingerAnimation.position.y === item.y;
+                  
+                  // Check if item is locked
+                  const isLocked = lockedElements.has('All') || 
+                                  lockedElements.has('BoardItemDrag') ||
+                                  (item.isGenerator && lockedElements.has('BoardActiveGenerator'));
                   
                   return (
                     <div
                       key={item.id}
                       onClick={() => handleClick(item.id)}
                       className={`
-                        w-16 h-16 border-2 rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all relative
+                        w-16 h-16 border-2 rounded-lg flex flex-col items-center justify-center transition-all relative
+                        ${isLocked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-gray-100 hover:scale-105'}
                         ${isHighlighted ? 'border-yellow-400 bg-yellow-100 ring-4 ring-yellow-300 animate-pulse' : 'border-gray-200 bg-gray-50'}
                         ${showFinger ? 'ring-4 ring-blue-300 z-20 scale-110' : ''}
                         ${configuredItem ? 'bg-blue-50 border-blue-300' : ''}
+                        ${configuredItem?.isAdded ? 'bg-green-50 border-green-300' : ''}
                         ${shaded && !isHighlighted && !showFinger ? 'opacity-50' : ''}
-                        hover:bg-gray-100 hover:scale-105
                       `}
                     >
                       {/* Generator icon */}
@@ -1202,8 +1486,13 @@ const FlowPreview = ({ steps, onClose }) => {
                       {/* Configured item display */}
                       {configuredItem && !item.isGenerator && (
                         <>
-                          <div className="text-xs font-bold text-blue-600">ID: {configuredItem.itemId}</div>
-                          <div className="text-[10px] text-blue-400">({configuredItem.position.x},{configuredItem.position.y})</div>
+                          <div className={`text-xs font-bold ${configuredItem.isAdded ? 'text-green-600' : 'text-blue-600'}`}>
+                            ID: {configuredItem.itemId}
+                            {configuredItem.isAdded && <span className="ml-1">✨</span>}
+                          </div>
+                          <div className={`text-[10px] ${configuredItem.isAdded ? 'text-green-400' : 'text-blue-400'}`}>
+                            ({configuredItem.position.x},{configuredItem.position.y})
+                          </div>
                         </>
                       )}
                       
@@ -1284,18 +1573,81 @@ const FlowPreview = ({ steps, onClose }) => {
           )}
           
           {/* Step Info Overlay */}
-          <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm rounded-lg p-4 shadow-lg border">
-            <div className="text-sm font-medium mb-2">Current Step Actions:</div>
-            <div className="space-y-1 text-xs">
-              {(currentStep?.actions || []).slice(0, 3).map((action, i) => {
-                const actionObj = typeof action === 'object' ? action : { Type: action };
-                return (
-                  <div key={i} className="text-gray-600">• {actionObj.Type}</div>
-                );
-              })}
-              {(currentStep?.actions || []).length > 3 && (
-                <div className="text-gray-400">+ {(currentStep?.actions || []).length - 3} more</div>
+          <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-sm rounded-lg p-4 shadow-lg border max-w-xs z-30">
+            <div className="text-sm font-medium mb-2">Step: {currentStep?.name || 'Unnamed'}</div>
+            {currentStep?.context && (
+              <div className="text-xs text-gray-500 mb-2">
+                Context: {currentStep.context.contextType.replace('_', ' ')} {currentStep.context.contextValue}
+              </div>
+            )}
+            <div className="text-sm font-medium mb-2">Actions ({currentStep?.actions?.length || 0}):</div>
+            <div className="space-y-1 text-xs max-h-32 overflow-y-auto">
+              {(currentStep?.actions || []).length === 0 ? (
+                <div className="text-gray-400 italic">No actions</div>
+              ) : (
+                (currentStep?.actions || []).slice(0, 5).map((action, i) => {
+                  const actionObj = typeof action === 'object' ? action : { Type: action, Target: 'Null' };
+                  return (
+                    <div key={i} className="text-gray-600 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
+                      <span className="font-medium">{actionObj.Type}</span>
+                      {actionObj.Target && actionObj.Target !== 'Null' && (
+                        <span className="text-gray-400">→ {actionObj.Target}</span>
+                      )}
+                    </div>
+                  );
+                })
               )}
+              {(currentStep?.actions || []).length > 5 && (
+                <div className="text-gray-400">+ {(currentStep?.actions || []).length - 5} more</div>
+              )}
+            </div>
+            {(currentStep?.completionConditions || []).length > 0 && (
+              <div className="mt-3 pt-3 border-t">
+                <div className="text-xs font-medium text-gray-500 mb-1">Completion:</div>
+                <div className="space-y-1 text-xs">
+                  {currentStep.completionConditions.map((cond, i) => (
+                    <div key={i} className="text-gray-600">
+                      {cond.type}: {cond.value || 'N/A'}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Visual State Indicator */}
+          <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-sm rounded-lg p-3 shadow-lg border z-30">
+            <div className="text-xs font-medium mb-2">Preview State:</div>
+            <div className="space-y-1 text-xs">
+              <div className={`flex items-center gap-2 ${showDialog ? 'text-green-600' : 'text-gray-400'}`}>
+                <div className={`w-2 h-2 rounded-full ${showDialog ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                Dialog {showDialog ? `(ID: ${showDialog.id})` : 'Hidden'}
+              </div>
+              <div className={`flex items-center gap-2 ${Object.keys(activeAnimations).length > 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                <div className={`w-2 h-2 rounded-full ${Object.keys(activeAnimations).length > 0 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                Animations {Object.keys(activeAnimations).length > 0 ? `(${Object.keys(activeAnimations).length})` : 'None'}
+              </div>
+              <div className={`flex items-center gap-2 ${highlightedElement ? 'text-green-600' : 'text-gray-400'}`}>
+                <div className={`w-2 h-2 rounded-full ${highlightedElement ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                Highlight {highlightedElement ? (typeof highlightedElement === 'object' ? highlightedElement.target : highlightedElement) : 'None'}
+              </div>
+              <div className={`flex items-center gap-2 ${shaded ? 'text-green-600' : 'text-gray-400'}`}>
+                <div className={`w-2 h-2 rounded-full ${shaded ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                Shade {shaded ? 'Active' : 'Inactive'}
+              </div>
+              <div className={`flex items-center gap-2 ${lockedElements.size > 0 ? 'text-orange-600' : 'text-gray-400'}`}>
+                <div className={`w-2 h-2 rounded-full ${lockedElements.size > 0 ? 'bg-orange-500' : 'bg-gray-300'}`}></div>
+                Locked {lockedElements.size > 0 ? `(${lockedElements.size})` : 'None'}
+              </div>
+              <div className={`flex items-center gap-2 ${showPopup ? 'text-purple-600' : 'text-gray-400'}`}>
+                <div className={`w-2 h-2 rounded-full ${showPopup ? 'bg-purple-500' : 'bg-gray-300'}`}></div>
+                Popup {showPopup ? showPopup.type : 'Hidden'}
+              </div>
+              <div className={`flex items-center gap-2 ${showCutscene ? 'text-pink-600' : 'text-gray-400'}`}>
+                <div className={`w-2 h-2 rounded-full ${showCutscene ? 'bg-pink-500' : 'bg-gray-300'}`}></div>
+                Cutscene {showCutscene ? showCutscene.id : 'Hidden'}
+              </div>
             </div>
           </div>
         </div>
