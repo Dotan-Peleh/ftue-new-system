@@ -1957,6 +1957,15 @@ export default function FTUEConfigUI() {
       return;
     }
     setSelectedFlow(flow);
+    // Load steps for this flow - if flow has steps data, use it, otherwise initialize empty
+    // In a real app, you'd fetch this from an API
+    // For now, we'll check if flow has a steps property or initialize empty array
+    if (flow.stepsData && Array.isArray(flow.stepsData)) {
+      setSteps(flow.stepsData);
+    } else {
+      // Initialize with empty steps for new flow or flow without steps data
+      setSteps([]);
+    }
     setView('editor');
   };
   
@@ -2166,6 +2175,7 @@ export default function FTUEConfigUI() {
             <div><h1 className="text-2xl font-bold text-gray-800">FTUE Flow Manager</h1><p className="text-sm text-gray-500">Configure and manage tutorial flows</p></div>
             <button onClick={() => {
               setSelectedFlow(null);
+              setSteps([]); // Clear steps for new flow
               setView('editor');
             }} className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2"><Plus size={18} />Create Flow</button>
           </div>
@@ -2204,6 +2214,10 @@ export default function FTUEConfigUI() {
       <header className="bg-white border-b px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button onClick={() => {
+            // Save steps to flow before going back
+            if (selectedFlow) {
+              setFlows(flows.map(f => f && f.id === selectedFlow.id ? { ...f, stepsData: steps, steps: steps.length } : f));
+            }
             setView('dashboard');
           }} className="p-2 hover:bg-gray-100 rounded-lg"><ChevronRight size={20} className="rotate-180" /></button>
           <div>
