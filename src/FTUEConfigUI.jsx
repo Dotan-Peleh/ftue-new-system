@@ -2268,7 +2268,14 @@ export default function FTUEConfigUI() {
           <button onClick={() => {
             // Save steps to flow before going back
             if (selectedFlow) {
-              setFlows(flows.map(f => f && f.id === selectedFlow.id ? { ...f, stepsData: steps, steps: steps.length } : f));
+              const updatedFlow = { ...selectedFlow, stepsData: steps, steps: steps.length };
+              setFlows(flows.map(f => f && f.id === selectedFlow.id ? updatedFlow : f));
+              // Also save to localStorage as backup
+              try {
+                localStorage.setItem(`flow_${selectedFlow.id}_steps`, JSON.stringify(steps));
+              } catch (e) {
+                console.error('Error saving steps to localStorage:', e);
+              }
             }
             setView('dashboard');
           }} className="p-2 hover:bg-gray-100 rounded-lg"><ChevronRight size={20} className="rotate-180" /></button>
