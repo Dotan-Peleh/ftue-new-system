@@ -93,6 +93,10 @@ const PropertiesPanel = ({ step, onClose, onUpdate, onAddCondition, onAddAction,
   
   useEffect(() => {
     setStepData(step);
+    // Reset expanded state when step changes
+    if (step) {
+      setExpanded({ entry: false, actions: true, completion: true, exit: false });
+    }
   }, [step]);
   
   if (!step) return <div className="w-80 bg-gray-50 border-l p-4 flex items-center justify-center text-gray-400">Select a step to edit properties</div>;
@@ -198,8 +202,11 @@ const ConditionBuilderModal = ({ onClose, onAdd, context }) => {
   const handleAdd = () => {
     if (onAdd) {
       onAdd({ type: selectedType, operator, value });
+      // Close modal after state update
+      setTimeout(() => onClose(), 0);
+    } else {
+      onClose();
     }
-    onClose();
   };
   
   return (
@@ -246,6 +253,10 @@ const ActionBuilderModal = ({ onClose, onAdd, step }) => {
   const [character, setCharacter] = useState('chris');
   const [blockInput, setBlockInput] = useState(true);
   
+  const isAddingStep = !step; // If no step provided, we're adding a new step
+  const modalTitle = isAddingStep ? 'Add Step' : 'Add Action';
+  const buttonText = isAddingStep ? 'Add Step' : 'Add Action';
+  
   const categories = [{ id: 'ui', name: 'UI', color: '#2196F3' }, { id: 'game', name: 'Game', color: '#4CAF50' }, { id: 'analytics', name: 'Analytics', color: '#FF9800' }, { id: 'flow', name: 'Flow', color: '#9C27B0' }];
   const filteredActions = actionTypes.filter(a => a.category === activeCategory);
   
@@ -256,15 +267,18 @@ const ActionBuilderModal = ({ onClose, onAdd, step }) => {
         ...(selectedAction === 'show_dialog' && { dialogId, character, blockInput })
       };
       onAdd(actionData);
+      // Close modal after state update
+      setTimeout(() => onClose(), 0);
+    } else {
+      onClose();
     }
-    onClose();
   };
   
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-xl w-[600px] max-h-[80vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="p-4 border-b flex items-center justify-between">
-          <h3 className="font-semibold text-lg">Add Action</h3>
+          <h3 className="font-semibold text-lg">{modalTitle}</h3>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X size={20} /></button>
         </div>
         <div className="flex border-b">
@@ -290,7 +304,7 @@ const ActionBuilderModal = ({ onClose, onAdd, step }) => {
         </div>
         <div className="p-4 border-t bg-gray-50 flex justify-end gap-2">
           <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-lg">Cancel</button>
-          <button onClick={handleAdd} className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2"><Plus size={16} />Add Action</button>
+          <button onClick={handleAdd} className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2"><Plus size={16} />{buttonText}</button>
         </div>
       </div>
     </div>
@@ -483,20 +497,26 @@ export default function FTUEConfigUI() {
   };
   
   const handleFlowEdit = (flow) => {
-    if (!flow) return;
+    if (!flow) {
+      return;
+    }
     setSelectedFlow(flow);
     setView('editor');
   };
   
   const handleFlowCopy = (flow) => {
-    if (!flow) return;
+    if (!flow) {
+      return;
+    }
     const newFlow = { ...flow, id: `${flow.id}_copy_${Date.now()}`, name: `${flow.name} (Copy)`, modified: 'Just now' };
     setFlows([...flows, newFlow]);
     showToast(`Copied "${flow.name}" successfully!`);
   };
   
   const handleFlowToggle = (flow) => {
-    if (!flow) return;
+    if (!flow) {
+      return;
+    }
     const newStatus = flow.status === 'active' ? 'inactive' : 'active';
     setFlows(flows.map(f => f && f.id === flow.id ? { ...f, status: newStatus } : f));
     showToast(`Flow status changed to ${newStatus}`);
@@ -514,17 +534,21 @@ export default function FTUEConfigUI() {
       };
       setSteps([...steps, newStep]);
       showToast('Step added successfully!');
+    } else {
     }
   };
   
   const handleAddAction = (step, context = 'enter') => {
-    if (!step) return;
+    if (!step) {
+      return;
+    }
     setSelectedStep(step);
     setShowActionModal(true);
   };
   
   const handleActionAdded = (actionData) => {
     if (selectedStep && actionData) {
+      const oldActions = selectedStep.actions || [];
       const updatedSteps = steps.map(s => 
         s && s.id === selectedStep.id 
           ? { ...s, actions: [...(s.actions || []), actionData.id] }
@@ -533,11 +557,15 @@ export default function FTUEConfigUI() {
       setSteps(updatedSteps);
       setSelectedStep(updatedSteps.find(s => s && s.id === selectedStep.id));
       showToast('Action added successfully!');
+    } else {
     }
   };
   
   const handleDeleteAction = (step, actionIndex) => {
-    if (!step) return;
+    if (!step) {
+      return;
+    }
+    const oldActions = step.actions || [];
     const updatedSteps = steps.map(s => 
       s && s.id === step.id 
         ? { ...s, actions: (s.actions || []).filter((_, i) => i !== actionIndex) }
@@ -558,6 +586,7 @@ export default function FTUEConfigUI() {
   const handleConditionAdded = (condition) => {
     if (selectedStep && condition) {
       const field = conditionContext === 'entry' ? 'entryConditions' : 'completionConditions';
+      const oldConditions = selectedStep[field] || [];
       const updatedSteps = steps.map(s => 
         s && s.id === selectedStep.id 
           ? { ...s, [field]: [...(s[field] || []), condition] }
@@ -566,24 +595,30 @@ export default function FTUEConfigUI() {
       setSteps(updatedSteps);
       setSelectedStep(updatedSteps.find(s => s && s.id === selectedStep.id));
       showToast('Condition added successfully!');
+    } else {
     }
   };
   
   const handleStepUpdate = (updatedStep) => {
-    if (!updatedStep) return;
+    if (!updatedStep) {
+      return;
+    }
     const updatedSteps = steps.map(s => s && s.id === updatedStep.id ? updatedStep : s);
     setSteps(updatedSteps);
     setSelectedStep(updatedStep);
   };
   
   const handleDeleteStep = (step) => {
-    if (!step) return;
+    if (!step) {
+      return;
+    }
     if (window.confirm(`Delete step "${step.name || 'Unnamed'}"?`)) {
       setSteps(steps.filter(s => s && s.id !== step.id));
       if (selectedStep && selectedStep.id === step.id) {
         setSelectedStep(null);
       }
       showToast('Step deleted');
+    } else {
     }
   };
   
@@ -597,6 +632,7 @@ export default function FTUEConfigUI() {
         setFlows(flows.map(f => f && f.id === selectedFlow.id ? { ...f, status: 'active' } : f));
       }
       showToast('Flow published successfully!', 'success');
+    } else {
     }
   };
   
@@ -609,6 +645,7 @@ export default function FTUEConfigUI() {
       const updated = { ...selectedFlow, name: name || 'New Flow' };
       setSelectedFlow(updated);
       setFlows(flows.map(f => f && f.id === updated.id ? updated : f));
+    } else {
     }
   };
   
@@ -619,18 +656,25 @@ export default function FTUEConfigUI() {
         <header className="bg-white border-b px-6 py-4">
           <div className="flex items-center justify-between">
             <div><h1 className="text-2xl font-bold text-gray-800">FTUE Flow Manager</h1><p className="text-sm text-gray-500">Configure and manage tutorial flows</p></div>
-            <button onClick={() => { setSelectedFlow(null); setView('editor'); }} className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2"><Plus size={18} />Create Flow</button>
+            <button onClick={() => {
+              setSelectedFlow(null);
+              setView('editor');
+            }} className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2"><Plus size={18} />Create Flow</button>
           </div>
         </header>
         <div className="px-6 py-4 bg-white border-b">
           <div className="flex items-center justify-between">
             <div className="flex gap-1">
               {['all', 'active', 'inactive', 'draft'].map(tab => (
-                <button key={tab} onClick={() => setFilterTab(tab)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${filterTab === tab ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}>{tab.charAt(0).toUpperCase() + tab.slice(1)}</button>
+                <button key={tab} onClick={() => {
+                  setFilterTab(tab);
+                }} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${filterTab === tab ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}>{tab.charAt(0).toUpperCase() + tab.slice(1)}</button>
               ))}
             </div>
             <div className="flex items-center gap-2">
-              <div className="relative"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" /><input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search flows..." className="pl-9 pr-4 py-2 border rounded-lg text-sm w-64" /></div>
+              <div className="relative"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" /><input type="text" value={searchQuery} onChange={(e) => {
+                setSearchQuery(e.target.value);
+              }} placeholder="Search flows..." className="pl-9 pr-4 py-2 border rounded-lg text-sm w-64" /></div>
               <button className="p-2 border rounded-lg hover:bg-gray-50"><Filter size={16} /></button>
             </div>
           </div>
@@ -651,15 +695,21 @@ export default function FTUEConfigUI() {
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       <header className="bg-white border-b px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <button onClick={() => setView('dashboard')} className="p-2 hover:bg-gray-100 rounded-lg"><ChevronRight size={20} className="rotate-180" /></button>
+          <button onClick={() => {
+            setView('dashboard');
+          }} className="p-2 hover:bg-gray-100 rounded-lg"><ChevronRight size={20} className="rotate-180" /></button>
           <div>
             <input type="text" value={(selectedFlow && selectedFlow.name) || "New Flow"} onChange={(e) => handleFlowNameChange(e.target.value)} className="text-lg font-semibold bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-1" />
             <div className="flex items-center gap-2 text-sm text-gray-500"><span>Flow #{selectedFlow?.legacy || '?'}</span><span>•</span><span>{steps.length} steps</span></div>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => { setShowSettingsModal(true); }} className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center gap-2"><Settings size={16} />Settings</button>
-          <button onClick={() => setShowValidationModal(true)} className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center gap-2"><AlertCircle size={16} />Validate</button>
+          <button onClick={() => {
+            setShowSettingsModal(true);
+          }} className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center gap-2"><Settings size={16} />Settings</button>
+          <button onClick={() => {
+            setShowValidationModal(true);
+          }} className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center gap-2"><AlertCircle size={16} />Validate</button>
           <button onClick={handlePreview} className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center gap-2"><Play size={16} />Preview</button>
           <button onClick={handleSave} className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg flex items-center gap-2 hover:bg-gray-300"><Save size={16} />Save</button>
           <button onClick={handlePublish} className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center gap-2"><Check size={16} />Publish</button>
@@ -670,7 +720,10 @@ export default function FTUEConfigUI() {
         <div className="w-64 bg-white border-r overflow-y-auto">
           <div className="p-3 border-b"><h3 className="font-medium text-sm text-gray-500 uppercase tracking-wide">Step Library</h3></div>
           <div className="p-3 space-y-2">
-            <button onClick={() => { setSelectedStep(null); setShowActionModal(true); }} className="w-full p-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-400 hover:text-blue-500 flex items-center justify-center gap-2"><Plus size={16} />Add Step</button>
+            <button onClick={() => {
+              setSelectedStep(null);
+              setShowActionModal(true);
+            }} className="w-full p-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-400 hover:text-blue-500 flex items-center justify-center gap-2"><Plus size={16} />Add Step</button>
             <div className="pt-2">
               <h4 className="text-xs font-medium text-gray-400 mb-2">TEMPLATES</h4>
               {['Dialog Step', 'Highlight Step', 'Wait for Action', 'Analytics Only'].map(template => (
@@ -691,7 +744,9 @@ export default function FTUEConfigUI() {
                     <StepNode 
                       step={step} 
                       selected={selectedStep?.id === step.id} 
-                      onClick={() => setSelectedStep(step)} 
+                      onClick={() => {
+                        setSelectedStep(step);
+                      }} 
                       onDelete={handleDeleteStep}
                       onDragStart={handleDragStart}
                       onDragOver={handleDragOver}
@@ -711,7 +766,9 @@ export default function FTUEConfigUI() {
         
         <PropertiesPanel 
           step={selectedStep} 
-          onClose={() => setSelectedStep(null)} 
+          onClose={() => {
+            setSelectedStep(null);
+          }} 
           onUpdate={handleStepUpdate}
           onAddCondition={handleAddCondition}
           onAddAction={handleAddAction}
@@ -720,10 +777,21 @@ export default function FTUEConfigUI() {
         />
       </div>
       
-      {showConditionModal && <ConditionBuilderModal onClose={() => setShowConditionModal(false)} onAdd={handleConditionAdded} context={conditionContext} />}
-      {showActionModal && <ActionBuilderModal onClose={() => setShowActionModal(false)} onAdd={selectedStep ? handleActionAdded : handleAddStep} step={selectedStep} />}
-      {showSettingsModal && <SettingsModal onClose={() => setShowSettingsModal(false)} flow={selectedFlow} onUpdate={(settings) => { if (selectedFlow) setSelectedFlow({...selectedFlow, ...settings}); showToast('Settings saved!'); }} />}
-      {showValidationModal && <ValidationModal onClose={() => setShowValidationModal(false)} steps={steps} />}
+      {showConditionModal && <ConditionBuilderModal onClose={() => {
+        setShowConditionModal(false);
+      }} onAdd={handleConditionAdded} context={conditionContext} />}
+      {showActionModal && <ActionBuilderModal onClose={() => {
+        setShowActionModal(false);
+      }} onAdd={selectedStep ? handleActionAdded : handleAddStep} step={selectedStep} />}
+      {showSettingsModal && <SettingsModal onClose={() => {
+        setShowSettingsModal(false);
+      }} flow={selectedFlow} onUpdate={(settings) => {
+        if (selectedFlow) setSelectedFlow({...selectedFlow, ...settings});
+        showToast('Settings saved!');
+      }} />}
+      {showValidationModal && <ValidationModal onClose={() => {
+        setShowValidationModal(false);
+      }} steps={steps} />}
     </div>
   );
 }
