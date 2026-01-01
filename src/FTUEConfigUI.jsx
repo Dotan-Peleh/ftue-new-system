@@ -189,6 +189,14 @@ const PropertiesPanel = ({ step, onClose, onUpdate, onAddCondition, onAddAction,
         <div className="p-3 space-y-3">
           <div><label className="block text-xs font-medium text-gray-500 mb-1">Step ID</label><input type="text" value={(stepData && stepData.id) || ''} readOnly className="w-full px-2 py-1.5 text-sm border rounded bg-gray-50" /></div>
           <div><label className="block text-xs font-medium text-gray-500 mb-1">Legacy Step Number</label><input type="number" value={(stepData && stepData.legacy) || 0} onChange={(e) => handleUpdate('legacy', parseInt(e.target.value) || 0)} className="w-full px-2 py-1.5 text-sm border rounded" /></div>
+          {stepData.context && (
+            <div className="p-2 bg-blue-50 rounded border border-blue-200">
+              <label className="block text-xs font-medium text-blue-700 mb-1">Context</label>
+              <div className="text-sm text-blue-600">
+                {stepData.context.contextType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}: {stepData.context.contextValue}
+              </div>
+            </div>
+          )}
           <div><label className="block text-xs font-medium text-gray-500 mb-1">Description</label><textarea rows={2} value={`Step ${(stepData && stepData.legacy) || 0}: ${(stepData && stepData.name) || ''}`} onChange={(e) => {
             const parts = e.target.value.split(': ');
             if (parts.length > 1) {
@@ -244,6 +252,152 @@ const PropertiesPanel = ({ step, onClose, onUpdate, onAddCondition, onAddAction,
             ))}
             <option value="end">— End Flow —</option>
           </select>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const StepContextModal = ({ onClose, onSelect }) => {
+  const [selectedContext, setSelectedContext] = useState(null);
+  const [contextValue, setContextValue] = useState('');
+  
+  const contextTypes = [
+    { id: 'scape_task', name: 'Scape Task', icon: '🗺️', description: 'Select a scape task' },
+    { id: 'scene', name: 'Scene', icon: '🎬', description: 'Select a scene' },
+    { id: 'chapter', name: 'Chapter', icon: '📖', description: 'Select a chapter' },
+    { id: 'item', name: 'Item', icon: '🎁', description: 'Select an item' },
+    { id: 'feature', name: 'Feature', icon: '⭐', description: 'Select a feature' }
+  ];
+  
+  const features = [
+    'None', 'Disco', 'Cascade', 'Missions', 'Mode Boost', 'Race', 
+    'Flowers', 'Recipes', 'Power Ups', 'Daily Challenges', 'Events', 
+    'TimedBoardTask', 'FusionFair', 'Reel', 'Oyster', 'HarvestSystem'
+  ];
+  
+  const handleContinue = () => {
+    if (selectedContext && contextValue) {
+      onSelect({
+        contextType: selectedContext,
+        contextValue: contextValue
+      });
+      onClose();
+    }
+  };
+  
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-xl w-[500px] max-h-[80vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="p-4 border-b flex items-center justify-between">
+          <h3 className="font-semibold text-lg">Select Step Context</h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X size={20} /></button>
+        </div>
+        <div className="p-4 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">What is this step about?</label>
+            <div className="grid grid-cols-2 gap-3">
+              {contextTypes.map(type => (
+                <button
+                  key={type.id}
+                  onClick={() => {
+                    setSelectedContext(type.id);
+                    setContextValue('');
+                  }}
+                  className={`p-4 rounded-lg border-2 text-left transition-all ${
+                    selectedContext === type.id 
+                      ? 'border-blue-500 bg-blue-50' 
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="text-2xl mb-2">{type.icon}</div>
+                  <div className="font-medium text-sm">{type.name}</div>
+                  <div className="text-xs text-gray-500 mt-1">{type.description}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          {selectedContext && (
+            <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
+              {selectedContext === 'feature' ? (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Select Feature</label>
+                  <select
+                    value={contextValue}
+                    onChange={(e) => setContextValue(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  >
+                    <option value="">— Select Feature —</option>
+                    {features.map(feature => (
+                      <option key={feature} value={feature === 'None' ? '' : feature}>{feature}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : selectedContext === 'chapter' ? (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Chapter Number</label>
+                  <input
+                    type="number"
+                    value={contextValue}
+                    onChange={(e) => setContextValue(e.target.value)}
+                    placeholder="e.g., 1, 2, 3"
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+              ) : selectedContext === 'scape_task' ? (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Scape Task ID</label>
+                  <input
+                    type="number"
+                    value={contextValue}
+                    onChange={(e) => setContextValue(e.target.value)}
+                    placeholder="e.g., 1, 2"
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+              ) : selectedContext === 'item' ? (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Item ID</label>
+                  <input
+                    type="number"
+                    value={contextValue}
+                    onChange={(e) => setContextValue(e.target.value)}
+                    placeholder="e.g., 399, 692, 504"
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+              ) : selectedContext === 'scene' ? (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Scene Name/ID</label>
+                  <input
+                    type="text"
+                    value={contextValue}
+                    onChange={(e) => setContextValue(e.target.value)}
+                    placeholder="e.g., BridgeAreaStep0Part0"
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+              ) : null}
+              
+              {contextValue && (
+                <div className="p-3 bg-blue-50 rounded border border-blue-200 text-sm">
+                  <span className="text-blue-700">Selected: </span>
+                  <span className="font-mono">{contextTypes.find(t => t.id === selectedContext)?.name} = {contextValue}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="p-4 border-t bg-gray-50 flex justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-lg">Cancel</button>
+          <button
+            onClick={handleContinue}
+            disabled={!selectedContext || !contextValue}
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ArrowRight size={16} />Continue to Actions
+          </button>
         </div>
       </div>
     </div>
@@ -1353,18 +1507,30 @@ export default function FTUEConfigUI() {
   
   const handleAddStep = (actionData) => {
     if (actionData) {
+      const contextName = pendingStepContext 
+        ? `${pendingStepContext.contextType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} ${pendingStepContext.contextValue}`
+        : (actionData.id || 'New Step').replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+      
       const newStep = {
         id: `step_${Date.now()}`,
-        name: (actionData.id || 'New Step').replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        name: contextName,
         legacy: steps.length,
         type: actionTypes.find(a => a.id === actionData.id)?.category || 'ui',
         actions: [actionData.id],
-        completionConditions: [{ type: 'user_action', value: 'click' }]
+        completionConditions: [{ type: 'user_action', value: 'click' }],
+        context: pendingStepContext
       };
       setSteps([...steps, newStep]);
+      setPendingStepContext(null);
       showToast('Step added successfully!');
     } else {
     }
+  };
+  
+  const handleStepContextSelected = (contextData) => {
+    setPendingStepContext(contextData);
+    setShowStepContextModal(false);
+    setShowActionModal(true);
   };
   
   const handleAddAction = (step, context = 'enter') => {
@@ -1629,7 +1795,7 @@ export default function FTUEConfigUI() {
               </div>
               <button onClick={() => {
                 setSelectedStep(null);
-                setShowActionModal(true);
+                setShowStepContextModal(true);
               }} className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2 mx-auto text-lg font-medium">
                 <Plus size={20} />Add Your First Step
               </button>
@@ -1642,7 +1808,7 @@ export default function FTUEConfigUI() {
           <div className="p-3 space-y-2">
             <button onClick={() => {
               setSelectedStep(null);
-              setShowActionModal(true);
+              setShowStepContextModal(true);
             }} className="w-full p-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-400 hover:text-blue-500 flex items-center justify-center gap-2"><Plus size={16} />Add Step</button>
             <div className="pt-2">
               <h4 className="text-xs font-medium text-gray-400 mb-2">TEMPLATES</h4>
@@ -1700,6 +1866,10 @@ export default function FTUEConfigUI() {
         )}
       </div>
       
+      {showStepContextModal && <StepContextModal onClose={() => {
+        setShowStepContextModal(false);
+        setPendingStepContext(null);
+      }} onSelect={handleStepContextSelected} />}
       {showConditionModal && <ConditionBuilderModal onClose={() => {
         setShowConditionModal(false);
       }} onAdd={handleConditionAdded} context={conditionContext} />}
