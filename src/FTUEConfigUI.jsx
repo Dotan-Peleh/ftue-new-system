@@ -89,13 +89,15 @@ const StepNode = ({ step, selected, onClick, onDelete, onDragStart, onDragOver, 
 
 const PropertiesPanel = ({ step, onClose, onUpdate, onAddCondition, onAddAction, onDeleteAction, allSteps }) => {
   const [expanded, setExpanded] = useState({ entry: false, actions: true, completion: true, exit: false });
-  const [stepData, setStepData] = useState(step);
+  const [stepData, setStepData] = useState(step || {});
   
   useEffect(() => {
-    setStepData(step);
-    // Reset expanded state when step changes
     if (step) {
+      setStepData(step);
+      // Reset expanded state when step changes
       setExpanded({ entry: false, actions: true, completion: true, exit: false });
+    } else {
+      setStepData({});
     }
   }, [step]);
   
@@ -115,6 +117,7 @@ const PropertiesPanel = ({ step, onClose, onUpdate, onAddCondition, onAddAction,
   );
   
   const handleUpdate = (field, value) => {
+    if (!stepData) return;
     const updated = { ...stepData, [field]: value };
     setStepData(updated);
     if (onUpdate) onUpdate(updated);
@@ -127,14 +130,14 @@ const PropertiesPanel = ({ step, onClose, onUpdate, onAddCondition, onAddAction,
           <h3 className="font-semibold">Step Properties</h3>
           <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded"><X size={16} /></button>
         </div>
-        <p className="text-sm text-gray-500">{stepData.name || 'Unnamed Step'}</p>
+        <p className="text-sm text-gray-500">{(stepData && stepData.name) || 'Unnamed Step'}</p>
       </div>
       
       <div className="divide-y">
         <div className="p-3 space-y-3">
-          <div><label className="block text-xs font-medium text-gray-500 mb-1">Step ID</label><input type="text" value={stepData.id || ''} readOnly className="w-full px-2 py-1.5 text-sm border rounded bg-gray-50" /></div>
-          <div><label className="block text-xs font-medium text-gray-500 mb-1">Legacy Step Number</label><input type="number" value={stepData.legacy || 0} onChange={(e) => handleUpdate('legacy', parseInt(e.target.value) || 0)} className="w-full px-2 py-1.5 text-sm border rounded" /></div>
-          <div><label className="block text-xs font-medium text-gray-500 mb-1">Description</label><textarea rows={2} value={`Step ${stepData.legacy || 0}: ${stepData.name || ''}`} onChange={(e) => {
+          <div><label className="block text-xs font-medium text-gray-500 mb-1">Step ID</label><input type="text" value={(stepData && stepData.id) || ''} readOnly className="w-full px-2 py-1.5 text-sm border rounded bg-gray-50" /></div>
+          <div><label className="block text-xs font-medium text-gray-500 mb-1">Legacy Step Number</label><input type="number" value={(stepData && stepData.legacy) || 0} onChange={(e) => handleUpdate('legacy', parseInt(e.target.value) || 0)} className="w-full px-2 py-1.5 text-sm border rounded" /></div>
+          <div><label className="block text-xs font-medium text-gray-500 mb-1">Description</label><textarea rows={2} value={`Step ${(stepData && stepData.legacy) || 0}: ${(stepData && stepData.name) || ''}`} onChange={(e) => {
             const parts = e.target.value.split(': ');
             if (parts.length > 1) {
               handleUpdate('name', parts.slice(1).join(': '));
@@ -785,8 +788,24 @@ export default function FTUEConfigUI() {
       }} onAdd={selectedStep ? handleActionAdded : handleAddStep} step={selectedStep} />}
       {showSettingsModal && <SettingsModal onClose={() => {
         setShowSettingsModal(false);
-      }} flow={selectedFlow} onUpdate={(settings) => {
-        if (selectedFlow) setSelectedFlow({...selectedFlow, ...settings});
+      }} flow={selectedFlow || {}} onUpdate={(settings) => {
+        if (selectedFlow) {
+          setSelectedFlow({...selectedFlow, ...settings});
+        } else {
+          // Create new flow if none selected
+          const newFlow = {
+            id: `flow_${Date.now()}`,
+            name: 'New Flow',
+            legacy: flows.length + 1,
+            steps: steps.length,
+            status: settings.status || 'draft',
+            priority: settings.priority || 50,
+            modified: 'Just now',
+            ...settings
+          };
+          setSelectedFlow(newFlow);
+          setFlows([...flows, newFlow]);
+        }
         showToast('Settings saved!');
       }} />}
       {showValidationModal && <ValidationModal onClose={() => {
