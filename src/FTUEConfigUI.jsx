@@ -1517,6 +1517,7 @@ export default function FTUEConfigUI() {
   const [steps, setSteps] = useState([]);
   const [selectedFlow, setSelectedFlow] = useState(null);
   const [selectedStep, setSelectedStep] = useState(null);
+  const [showStepContextModal, setShowStepContextModal] = useState(false);
   const [showConditionModal, setShowConditionModal] = useState(false);
   const [showActionModal, setShowActionModal] = useState(false);
   const [showActionDetailsModal, setShowActionDetailsModal] = useState(false);
@@ -1530,6 +1531,7 @@ export default function FTUEConfigUI() {
   const [draggedIndex, setDraggedIndex] = useState(null);
   const [editingActionIndex, setEditingActionIndex] = useState(null);
   const [editingAction, setEditingAction] = useState(null);
+  const [pendingStepContext, setPendingStepContext] = useState(null);
   
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
