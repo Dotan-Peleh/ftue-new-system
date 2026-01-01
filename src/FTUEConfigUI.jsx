@@ -296,15 +296,15 @@ const StepContextModal = ({ onClose, onSelect }) => {
         onClose();
       }
     }}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-[500px] h-[90vh] max-h-[600px] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-[500px] max-h-[85vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* Fixed Header */}
-        <div className="p-4 border-b flex items-center justify-between flex-shrink-0 bg-white">
+        <div className="p-4 border-b flex items-center justify-between flex-shrink-0 bg-white z-10">
           <h3 className="font-semibold text-lg">Select Step Context</h3>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X size={20} /></button>
         </div>
         
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ maxHeight: 'calc(85vh - 140px)' }}>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3">What is this step about?</label>
             <div className="grid grid-cols-2 gap-3">
