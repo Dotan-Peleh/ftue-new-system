@@ -942,45 +942,100 @@ const FlowPreview = ({ steps, onClose }) => {
   const isLastStep = currentStepIndex >= steps.length - 1;
   
   useEffect(() => {
-    if (currentStep && currentStep.actions) {
+    if (currentStep && currentStep.actions && currentStep.actions.length > 0) {
       // Reset animations
       setActiveAnimations({});
       setShowDialog(null);
       setHighlightedElement(null);
       setShaded(false);
       
-      // Process actions
+      // Process actions with proper delays
       currentStep.actions.forEach((action, i) => {
-        const actionObj = typeof action === 'object' ? action : { Type: action, Target: 'Null' };
+        // Handle both string and object formats
+        let actionObj;
+        if (typeof action === 'string') {
+          // Convert old string format to object format
+          if (action === 'show_dialog') {
+            actionObj = { Type: 'ShowDialog', Target: 'Null' };
+          } else if (action === 'show_finger' || action === 'show_tooltip') {
+            actionObj = { Type: 'ShowTooltip', Target: 'BoardActiveGenerator' };
+          } else if (action === 'highlight_ui' || action === 'highlight_element') {
+            actionObj = { Type: 'HighlightElement', Target: 'BoardScreen' };
+          } else if (action === 'shade_screen' || action === 'fade_in') {
+            actionObj = { Type: 'FadeIn', Target: 'BoardScreen' };
+          } else {
+            actionObj = { Type: action.replace(/_/g, ''), Target: 'Null' };
+          }
+        } else {
+          actionObj = action;
+        }
         
         setTimeout(() => {
-          if (actionObj.Type === 'ShowDialog') {
+          // ShowDialog action
+          if (actionObj.Type === 'ShowDialog' || actionObj.Type === 'show_dialog') {
+            const dialogId = actionObj.TargetDialog?.DialogId || actionObj.dialogId || 0;
+            const character = actionObj.TargetCharacter?.CharacterId || actionObj.character || 'Chris';
             setShowDialog({
-              id: actionObj.TargetDialog?.DialogId || 0,
-              character: actionObj.TargetCharacter?.CharacterId || 'Chris'
+              id: dialogId,
+              character: character,
+              text: `Dialog ${dialogId} with ${character}`
             });
           }
-          if (actionObj.Type === 'ShowTooltip') {
-            const target = actionObj.Target || 'Null';
-            if (target === 'BoardItem' || target === 'BoardActiveGenerator') {
+          
+          // ShowTooltip action
+          if (actionObj.Type === 'ShowTooltip' || actionObj.Type === 'show_tooltip' || actionObj.Type === 'show_finger') {
+            const target = actionObj.Target || 'BoardActiveGenerator';
+            if (target === 'BoardItem' && actionObj.TargetBoardItem) {
+              const pos = actionObj.TargetBoardItem.Position || { x: 2, y: 2 };
               setActiveAnimations(prev => ({
                 ...prev,
-                [target]: {
+                'BoardItem': {
                   type: 'finger',
-                  position: actionObj.TargetBoardItem?.Position || { x: 2, y: 2 },
+                  position: pos,
+                  tooltipType: actionObj.TypeShowTooltip?.Type || 'Tap',
+                  itemId: actionObj.TargetBoardItem.ItemId
+                }
+              }));
+            } else if (target === 'BoardActiveGenerator' || target === 'Null') {
+              setActiveAnimations(prev => ({
+                ...prev,
+                'BoardActiveGenerator': {
+                  type: 'finger',
+                  position: { x: 3, y: 3 },
                   tooltipType: actionObj.TypeShowTooltip?.Type || 'Tap'
                 }
               }));
             }
           }
-          if (actionObj.Type === 'HighlightElement') {
-            setHighlightedElement(actionObj.Target || 'Null');
+          
+          // HighlightElement action
+          if (actionObj.Type === 'HighlightElement' || actionObj.Type === 'highlight_ui' || actionObj.Type === 'highlight_element') {
+            const target = actionObj.Target || 'BoardScreen';
+            setHighlightedElement(target);
           }
-          if (actionObj.Type === 'FadeIn' || actionObj.Target === 'BoardScreen') {
+          
+          // FadeIn / Shade Screen action
+          if (actionObj.Type === 'FadeIn' || actionObj.Type === 'fade_in' || actionObj.Type === 'shade_screen' || actionObj.Target === 'BoardScreen') {
             setShaded(true);
           }
-        }, i * 300);
+          
+          // LockUIElement
+          if (actionObj.Type === 'LockUIElement') {
+            setShaded(true);
+          }
+          
+          // UnLockUIElement
+          if (actionObj.Type === 'UnLockUIElement') {
+            // Could show unlock animation
+          }
+        }, i * 500); // Increased delay for better visibility
       });
+    } else if (currentStep && (!currentStep.actions || currentStep.actions.length === 0)) {
+      // If step has no actions, show empty state
+      setActiveAnimations({});
+      setShowDialog(null);
+      setHighlightedElement(null);
+      setShaded(false);
     }
   }, [currentStepIndex, currentStep]);
   
@@ -1087,11 +1142,14 @@ const FlowPreview = ({ steps, onClose }) => {
               {/* Board Grid */}
               <div className="grid grid-cols-7 gap-2 bg-white p-4 rounded-lg shadow-lg">
                 {boardItems.map((item) => {
-                  const isHighlighted = highlightedElement === 'BoardItem' || highlightedElement === item.id || (highlightedElement === 'BoardActiveGenerator' && item.isGenerator);
+                  const isHighlighted = highlightedElement === 'BoardItem' || highlightedElement === item.id || 
+                                       (highlightedElement === 'BoardActiveGenerator' && item.isGenerator) ||
+                                       (highlightedElement === 'BoardScreen');
                   const hasFinger = activeAnimations['BoardItem'] || activeAnimations['BoardActiveGenerator'];
                   const fingerPos = hasFinger ? (activeAnimations['BoardItem']?.position || activeAnimations['BoardActiveGenerator']?.position || { x: 2, y: 2 }) : null;
                   const showFinger = fingerPos && fingerPos.x === item.x && fingerPos.y === item.y;
                   const configuredItem = item.configured;
+                  const fingerAnimation = showFinger ? (activeAnimations['BoardItem'] || activeAnimations['BoardActiveGenerator']) : null;
                   
                   return (
                     <div
@@ -1099,15 +1157,16 @@ const FlowPreview = ({ steps, onClose }) => {
                       onClick={() => handleClick(item.id)}
                       className={`
                         w-16 h-16 border-2 rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all relative
-                        ${isHighlighted ? 'border-yellow-400 bg-yellow-100 ring-4 ring-yellow-300' : 'border-gray-200 bg-gray-50'}
-                        ${showFinger ? 'ring-4 ring-blue-300' : ''}
+                        ${isHighlighted ? 'border-yellow-400 bg-yellow-100 ring-4 ring-yellow-300 animate-pulse' : 'border-gray-200 bg-gray-50'}
+                        ${showFinger ? 'ring-4 ring-blue-300 z-20 scale-110' : ''}
                         ${configuredItem ? 'bg-blue-50 border-blue-300' : ''}
-                        hover:bg-gray-100
+                        ${shaded && !isHighlighted && !showFinger ? 'opacity-50' : ''}
+                        hover:bg-gray-100 hover:scale-105
                       `}
                     >
                       {/* Generator icon */}
                       {item.isGenerator && (
-                        <div className="text-2xl">⚙️</div>
+                        <div className={`text-2xl ${isHighlighted ? 'animate-pulse' : ''}`}>⚙️</div>
                       )}
                       
                       {/* Configured item display */}
@@ -1119,17 +1178,17 @@ const FlowPreview = ({ steps, onClose }) => {
                       )}
                       
                       {/* Finger animation */}
-                      {showFinger && (
-                        <div className="absolute inset-0 flex items-center justify-center animate-bounce pointer-events-none z-10">
-                          <div className="text-4xl">👆</div>
-                          <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                            {activeAnimations['BoardItem']?.tooltipType === 'Tap' ? 'Tap here' : activeAnimations['BoardItem']?.tooltipType || 'Info'}
+                      {showFinger && fingerAnimation && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                          <div className="text-4xl animate-bounce">👆</div>
+                          <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
+                            {fingerAnimation.tooltipType === 'Tap' ? 'Tap here' : fingerAnimation.tooltipType === 'Info' ? 'Info' : fingerAnimation.tooltipType || 'Tap here'}
                           </div>
                         </div>
                       )}
                       
                       {/* Empty cell indicator */}
-                      {!configuredItem && !item.isGenerator && (
+                      {!configuredItem && !item.isGenerator && !showFinger && (
                         <div className="text-xs text-gray-300">•</div>
                       )}
                     </div>
@@ -1146,21 +1205,51 @@ const FlowPreview = ({ steps, onClose }) => {
           
           {/* Dialog */}
           {showDialog && (
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-white rounded-lg shadow-2xl p-6 max-w-md border-2 border-blue-300 animate-fadeIn">
+            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-white rounded-lg shadow-2xl p-6 max-w-md border-2 border-blue-300 animate-fadeIn z-50">
               <div className="flex items-start gap-4">
                 <div className="text-4xl">👤</div>
                 <div className="flex-1">
-                  <div className="font-semibold mb-2">{showDialog.character}</div>
-                  <div className="text-gray-700">Dialog ID: {showDialog.id}</div>
-                  <div className="text-sm text-gray-500 mt-2">This is a preview of the dialog that would appear.</div>
+                  <div className="font-semibold mb-2 text-lg">{showDialog.character}</div>
+                  <div className="text-gray-700 mb-2">Dialog ID: {showDialog.id}</div>
+                  <div className="text-sm text-gray-500 mt-2 p-3 bg-gray-50 rounded">
+                    {showDialog.text || 'This is a preview of the dialog that would appear in the game.'}
+                  </div>
                 </div>
               </div>
-              <button
-                onClick={handleClick('dialog')}
-                className="mt-4 w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600"
-              >
-                Continue
-              </button>
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={() => handleClick('dialog')}
+                  className="flex-1 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  Continue
+                </button>
+                <button
+                  onClick={() => {
+                    setShowDialog(null);
+                    handleNext();
+                  }}
+                  className="px-4 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 transition-colors"
+                >
+                  Skip
+                </button>
+              </div>
+            </div>
+          )}
+          
+          {/* No actions message */}
+          {currentStep && (!currentStep.actions || currentStep.actions.length === 0) && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
+                <div className="text-4xl mb-4">📝</div>
+                <h3 className="text-lg font-semibold mb-2">No Actions Configured</h3>
+                <p className="text-gray-600">This step doesn't have any actions yet. Add actions in the step properties to see them in the preview.</p>
+                <button
+                  onClick={handleNext}
+                  className="mt-4 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                >
+                  Continue
+                </button>
+              </div>
             </div>
           )}
           
