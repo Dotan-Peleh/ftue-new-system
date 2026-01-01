@@ -27,22 +27,23 @@ const Toast = ({ message, type = 'success', onClose }) => {
 };
 
 const FlowCard = ({ flow, onClick, selected, onEdit, onCopy, onToggle }) => {
+  if (!flow) return null;
   const statusColors = { active: colors.secondary, inactive: '#9E9E9E', draft: colors.warning };
   return (
     <div onClick={onClick} className={`bg-white rounded-lg shadow-sm border-2 p-4 cursor-pointer transition-all hover:shadow-md ${selected ? 'border-blue-500' : 'border-transparent'}`}>
       <div className="flex items-start justify-between mb-3">
         <div>
-          <h3 className="font-semibold text-gray-800">{flow.name}</h3>
-          <span className="text-xs text-gray-500">Flow #{flow.legacy}</span>
+          <h3 className="font-semibold text-gray-800">{flow.name || 'Unnamed Flow'}</h3>
+          <span className="text-xs text-gray-500">Flow #{flow.legacy || '?'}</span>
         </div>
-        <span className="px-2 py-1 rounded-full text-xs font-medium text-white" style={{ backgroundColor: statusColors[flow.status] }}>{flow.status}</span>
+        <span className="px-2 py-1 rounded-full text-xs font-medium text-white" style={{ backgroundColor: statusColors[flow.status] || '#9E9E9E' }}>{flow.status || 'draft'}</span>
       </div>
       <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
-        <span className="flex items-center gap-1"><Users size={14} />{flow.steps} steps</span>
-        <span className="flex items-center gap-1"><Zap size={14} />P{flow.priority}</span>
+        <span className="flex items-center gap-1"><Users size={14} />{flow.steps || 0} steps</span>
+        <span className="flex items-center gap-1"><Zap size={14} />P{flow.priority || 0}</span>
       </div>
       <div className="flex items-center justify-between">
-        <span className="text-xs text-gray-400">{flow.modified}</span>
+        <span className="text-xs text-gray-400">{flow.modified || 'Unknown'}</span>
         <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
           <button onClick={() => onEdit(flow)} className="p-1 hover:bg-gray-100 rounded" title="Edit"><Edit3 size={14} /></button>
           <button onClick={() => onCopy(flow)} className="p-1 hover:bg-gray-100 rounded" title="Copy"><Copy size={14} /></button>
@@ -53,20 +54,29 @@ const FlowCard = ({ flow, onClick, selected, onEdit, onCopy, onToggle }) => {
   );
 };
 
-const StepNode = ({ step, selected, onClick, onDelete }) => {
+const StepNode = ({ step, selected, onClick, onDelete, onDragStart, onDragOver, onDrop, index, isDragging }) => {
+  if (!step) return null;
   const typeColor = stepTypeColors[step.type] || '#424242';
   return (
-    <div onClick={onClick} className={`bg-white rounded-lg shadow-sm border-2 p-3 cursor-pointer transition-all hover:shadow-md w-48 relative group ${selected ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200'}`} style={{ borderLeftWidth: '4px', borderLeftColor: typeColor }}>
+    <div 
+      draggable
+      onDragStart={(e) => onDragStart(e, index)}
+      onDragOver={(e) => onDragOver(e)}
+      onDrop={(e) => onDrop(e, index)}
+      onClick={onClick} 
+      className={`bg-white rounded-lg shadow-sm border-2 p-3 cursor-pointer transition-all hover:shadow-md w-48 relative group ${selected ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200'} ${isDragging ? 'opacity-50' : ''}`} 
+      style={{ borderLeftWidth: '4px', borderLeftColor: typeColor }}
+    >
       <div className="flex items-center gap-2 mb-2">
         <GripVertical size={14} className="text-gray-400 cursor-grab" />
-        <span className="font-medium text-sm text-gray-800 flex-1 truncate">{step.name}</span>
-        <span className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">#{step.legacy}</span>
+        <span className="font-medium text-sm text-gray-800 flex-1 truncate">{step.name || 'Unnamed Step'}</span>
+        <span className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">#{step.legacy || index}</span>
       </div>
       <div className="flex flex-wrap gap-1">
-        {step.actions.slice(0, 3).map((action, i) => (
-          <span key={i} className="text-xs bg-gray-50 text-gray-600 px-1.5 py-0.5 rounded">{action.replace('_', ' ')}</span>
+        {(step.actions || []).slice(0, 3).map((action, i) => (
+          <span key={i} className="text-xs bg-gray-50 text-gray-600 px-1.5 py-0.5 rounded">{String(action).replace('_', ' ')}</span>
         ))}
-        {step.actions.length > 3 && <span className="text-xs text-gray-400">+{step.actions.length - 3}</span>}
+        {(step.actions || []).length > 3 && <span className="text-xs text-gray-400">+{(step.actions || []).length - 3}</span>}
       </div>
       {selected && (
         <button onClick={(e) => { e.stopPropagation(); onDelete(step); }} className="absolute top-2 right-2 p-1 bg-red-100 text-red-600 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-200" title="Delete Step">
@@ -103,7 +113,7 @@ const PropertiesPanel = ({ step, onClose, onUpdate, onAddCondition, onAddAction,
   const handleUpdate = (field, value) => {
     const updated = { ...stepData, [field]: value };
     setStepData(updated);
-    onUpdate(updated);
+    if (onUpdate) onUpdate(updated);
   };
   
   return (
@@ -113,57 +123,64 @@ const PropertiesPanel = ({ step, onClose, onUpdate, onAddCondition, onAddAction,
           <h3 className="font-semibold">Step Properties</h3>
           <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded"><X size={16} /></button>
         </div>
-        <p className="text-sm text-gray-500">{stepData.name}</p>
+        <p className="text-sm text-gray-500">{stepData.name || 'Unnamed Step'}</p>
       </div>
       
       <div className="divide-y">
         <div className="p-3 space-y-3">
-          <div><label className="block text-xs font-medium text-gray-500 mb-1">Step ID</label><input type="text" value={stepData.id} readOnly className="w-full px-2 py-1.5 text-sm border rounded bg-gray-50" /></div>
-          <div><label className="block text-xs font-medium text-gray-500 mb-1">Legacy Step Number</label><input type="number" value={stepData.legacy} onChange={(e) => handleUpdate('legacy', parseInt(e.target.value))} className="w-full px-2 py-1.5 text-sm border rounded" /></div>
-          <div><label className="block text-xs font-medium text-gray-500 mb-1">Description</label><textarea rows={2} value={`Step ${stepData.legacy}: ${stepData.name}`} onChange={(e) => handleUpdate('name', e.target.value.split(': ')[1] || e.target.value)} className="w-full px-2 py-1.5 text-sm border rounded resize-none" /></div>
+          <div><label className="block text-xs font-medium text-gray-500 mb-1">Step ID</label><input type="text" value={stepData.id || ''} readOnly className="w-full px-2 py-1.5 text-sm border rounded bg-gray-50" /></div>
+          <div><label className="block text-xs font-medium text-gray-500 mb-1">Legacy Step Number</label><input type="number" value={stepData.legacy || 0} onChange={(e) => handleUpdate('legacy', parseInt(e.target.value) || 0)} className="w-full px-2 py-1.5 text-sm border rounded" /></div>
+          <div><label className="block text-xs font-medium text-gray-500 mb-1">Description</label><textarea rows={2} value={`Step ${stepData.legacy || 0}: ${stepData.name || ''}`} onChange={(e) => {
+            const parts = e.target.value.split(': ');
+            if (parts.length > 1) {
+              handleUpdate('name', parts.slice(1).join(': '));
+            } else {
+              handleUpdate('name', e.target.value);
+            }
+          }} className="w-full px-2 py-1.5 text-sm border rounded resize-none" /></div>
         </div>
         
         <Section title="Entry Conditions" name="entry">
-          <button onClick={() => onAddCondition('entry')} className="w-full py-2 border-2 border-dashed border-gray-300 rounded text-sm text-gray-500 hover:border-blue-400 hover:text-blue-500 flex items-center justify-center gap-1"><Plus size={14} />Add Condition</button>
+          <button onClick={() => onAddCondition && onAddCondition('entry')} className="w-full py-2 border-2 border-dashed border-gray-300 rounded text-sm text-gray-500 hover:border-blue-400 hover:text-blue-500 flex items-center justify-center gap-1"><Plus size={14} />Add Condition</button>
         </Section>
         
-        <Section title="Actions On Enter" name="actions" badge={stepData.actions.length}>
+        <Section title="Actions On Enter" name="actions" badge={(stepData.actions || []).length}>
           <div className="space-y-2">
-            {stepData.actions.map((action, i) => (
+            {(stepData.actions || []).map((action, i) => (
               <div key={i} className="flex items-center gap-2 p-2 bg-gray-50 rounded border">
                 <GripVertical size={14} className="text-gray-400 cursor-grab" />
-                <span className="flex-1 text-sm">{action.replace(/_/g, ' ')}</span>
+                <span className="flex-1 text-sm">{String(action).replace(/_/g, ' ')}</span>
                 <button className="p-1 hover:bg-gray-200 rounded text-gray-400"><Edit3 size={12} /></button>
-                <button onClick={() => onDeleteAction(stepData, i)} className="p-1 hover:bg-red-100 rounded text-gray-400 hover:text-red-500"><Trash2 size={12} /></button>
+                <button onClick={() => onDeleteAction && onDeleteAction(stepData, i)} className="p-1 hover:bg-red-100 rounded text-gray-400 hover:text-red-500"><Trash2 size={12} /></button>
               </div>
             ))}
-            <button onClick={() => onAddAction(stepData)} className="w-full py-2 border-2 border-dashed border-gray-300 rounded text-sm text-gray-500 hover:border-blue-400 hover:text-blue-500 flex items-center justify-center gap-1"><Plus size={14} />Add Action</button>
+            <button onClick={() => onAddAction && onAddAction(stepData)} className="w-full py-2 border-2 border-dashed border-gray-300 rounded text-sm text-gray-500 hover:border-blue-400 hover:text-blue-500 flex items-center justify-center gap-1"><Plus size={14} />Add Action</button>
           </div>
         </Section>
         
-        <Section title="Completion Conditions" name="completion" badge={stepData.completionConditions?.length || 1}>
+        <Section title="Completion Conditions" name="completion" badge={(stepData.completionConditions || [{ type: 'user_action', value: 'click' }]).length}>
           <div className="space-y-2">
             {(stepData.completionConditions || [{ type: 'user_action', value: 'click' }]).map((condition, i) => (
               <div key={i} className="flex items-center gap-2 p-2 bg-blue-50 rounded border border-blue-200">
                 <Hand size={14} className="text-blue-500" />
-                <span className="flex-1 text-sm">{condition.type}: {condition.value}</span>
+                <span className="flex-1 text-sm">{condition.type || 'user_action'}: {condition.value || 'click'}</span>
                 <button className="p-1 hover:bg-blue-100 rounded text-blue-400"><Edit3 size={12} /></button>
               </div>
             ))}
-            <button onClick={() => onAddCondition('completion')} className="w-full py-2 border-2 border-dashed border-gray-300 rounded text-sm text-gray-500 hover:border-blue-400 hover:text-blue-500 flex items-center justify-center gap-1"><Plus size={14} />Add Condition</button>
+            <button onClick={() => onAddCondition && onAddCondition('completion')} className="w-full py-2 border-2 border-dashed border-gray-300 rounded text-sm text-gray-500 hover:border-blue-400 hover:text-blue-500 flex items-center justify-center gap-1"><Plus size={14} />Add Condition</button>
           </div>
         </Section>
         
         <Section title="Actions On Exit" name="exit">
-          <button onClick={() => onAddAction(stepData, 'exit')} className="w-full py-2 border-2 border-dashed border-gray-300 rounded text-sm text-gray-500 hover:border-blue-400 hover:text-blue-500 flex items-center justify-center gap-1"><Plus size={14} />Add Action</button>
+          <button onClick={() => onAddAction && onAddAction(stepData, 'exit')} className="w-full py-2 border-2 border-dashed border-gray-300 rounded text-sm text-gray-500 hover:border-blue-400 hover:text-blue-500 flex items-center justify-center gap-1"><Plus size={14} />Add Action</button>
         </Section>
         
         <div className="p-3">
           <label className="block text-xs font-medium text-gray-500 mb-1">Next Step</label>
           <select value={stepData.nextStep || ''} onChange={(e) => handleUpdate('nextStep', e.target.value)} className="w-full px-2 py-1.5 text-sm border rounded">
             <option value="">— Select Next Step —</option>
-            {allSteps.filter(s => s.id !== stepData.id).map(s => (
-              <option key={s.id} value={s.id}>{s.name} (Step #{s.legacy})</option>
+            {(allSteps || []).filter(s => s && s.id !== stepData.id).map(s => (
+              <option key={s.id} value={s.id}>{s.name || 'Unnamed'} (Step #{s.legacy || 0})</option>
             ))}
             <option value="end">— End Flow —</option>
           </select>
@@ -179,7 +196,9 @@ const ConditionBuilderModal = ({ onClose, onAdd, context }) => {
   const [value, setValue] = useState('1');
   
   const handleAdd = () => {
-    onAdd({ type: selectedType, operator, value });
+    if (onAdd) {
+      onAdd({ type: selectedType, operator, value });
+    }
     onClose();
   };
   
@@ -231,11 +250,13 @@ const ActionBuilderModal = ({ onClose, onAdd, step }) => {
   const filteredActions = actionTypes.filter(a => a.category === activeCategory);
   
   const handleAdd = () => {
-    const actionData = {
-      id: selectedAction,
-      ...(selectedAction === 'show_dialog' && { dialogId, character, blockInput })
-    };
-    onAdd(actionData);
+    if (onAdd) {
+      const actionData = {
+        id: selectedAction,
+        ...(selectedAction === 'show_dialog' && { dialogId, character, blockInput })
+      };
+      onAdd(actionData);
+    }
     onClose();
   };
   
@@ -294,7 +315,7 @@ const SettingsModal = ({ onClose, flow, onUpdate }) => {
         <div className="p-4 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
-            <input type="number" value={settings.priority} onChange={(e) => setSettings({...settings, priority: parseInt(e.target.value)})} className="w-full px-3 py-2 border rounded-lg" min="0" max="100" />
+            <input type="number" value={settings.priority} onChange={(e) => setSettings({...settings, priority: parseInt(e.target.value) || 0})} className="w-full px-3 py-2 border rounded-lg" min="0" max="100" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
@@ -315,7 +336,7 @@ const SettingsModal = ({ onClose, flow, onUpdate }) => {
         </div>
         <div className="p-4 border-t bg-gray-50 flex justify-end gap-2">
           <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-lg">Cancel</button>
-          <button onClick={() => { onUpdate(settings); onClose(); }} className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Save Settings</button>
+          <button onClick={() => { if (onUpdate) onUpdate(settings); onClose(); }} className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Save Settings</button>
         </div>
       </div>
     </div>
@@ -327,12 +348,13 @@ const ValidationModal = ({ onClose, steps }) => {
   
   useEffect(() => {
     const validationIssues = [];
-    steps.forEach((step, index) => {
+    (steps || []).forEach((step, index) => {
+      if (!step) return;
       if (!step.nextStep && index < steps.length - 1) {
-        validationIssues.push({ type: 'warning', message: `${step.name} has no next step defined` });
+        validationIssues.push({ type: 'warning', message: `${step.name || 'Unnamed step'} has no next step defined` });
       }
-      if (step.actions.length === 0) {
-        validationIssues.push({ type: 'info', message: `${step.name} has no actions` });
+      if (!step.actions || step.actions.length === 0) {
+        validationIssues.push({ type: 'info', message: `${step.name || 'Unnamed step'} has no actions` });
       }
     });
     setIssues(validationIssues);
@@ -421,73 +443,110 @@ export default function FTUEConfigUI() {
   const [searchQuery, setSearchQuery] = useState('');
   const [toast, setToast] = useState(null);
   const [conditionContext, setConditionContext] = useState(null);
+  const [draggedIndex, setDraggedIndex] = useState(null);
   
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
   };
   
   const filteredFlows = flows.filter(f => {
+    if (!f) return false;
     const matchesTab = filterTab === 'all' || f.status === filterTab;
-    const matchesSearch = searchQuery === '' || f.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = searchQuery === '' || (f.name || '').toLowerCase().includes(searchQuery.toLowerCase());
     return matchesTab && matchesSearch;
   });
   
+  const handleDragStart = (e, index) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+  
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+  
+  const handleDrop = (e, dropIndex) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === dropIndex) {
+      setDraggedIndex(null);
+      return;
+    }
+    
+    const newSteps = [...steps];
+    const draggedStep = newSteps[draggedIndex];
+    newSteps.splice(draggedIndex, 1);
+    newSteps.splice(dropIndex, 0, draggedStep);
+    setSteps(newSteps);
+    setDraggedIndex(null);
+    showToast('Step order updated');
+  };
+  
   const handleFlowEdit = (flow) => {
+    if (!flow) return;
     setSelectedFlow(flow);
     setView('editor');
   };
   
   const handleFlowCopy = (flow) => {
-    const newFlow = { ...flow, id: `${flow.id}_copy`, name: `${flow.name} (Copy)`, modified: 'Just now' };
+    if (!flow) return;
+    const newFlow = { ...flow, id: `${flow.id}_copy_${Date.now()}`, name: `${flow.name} (Copy)`, modified: 'Just now' };
     setFlows([...flows, newFlow]);
     showToast(`Copied "${flow.name}" successfully!`);
   };
   
   const handleFlowToggle = (flow) => {
+    if (!flow) return;
     const newStatus = flow.status === 'active' ? 'inactive' : 'active';
-    setFlows(flows.map(f => f.id === flow.id ? { ...f, status: newStatus } : f));
+    setFlows(flows.map(f => f && f.id === flow.id ? { ...f, status: newStatus } : f));
     showToast(`Flow status changed to ${newStatus}`);
   };
   
   const handleAddStep = (actionData) => {
-    const newStep = {
-      id: `step_${Date.now()}`,
-      name: actionData.id.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
-      legacy: steps.length,
-      type: actionTypes.find(a => a.id === actionData.id)?.category || 'ui',
-      actions: [actionData.id],
-      completionConditions: [{ type: 'user_action', value: 'click' }]
-    };
-    setSteps([...steps, newStep]);
-    showToast('Step added successfully!');
+    if (actionData) {
+      const newStep = {
+        id: `step_${Date.now()}`,
+        name: (actionData.id || 'New Step').replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        legacy: steps.length,
+        type: actionTypes.find(a => a.id === actionData.id)?.category || 'ui',
+        actions: [actionData.id],
+        completionConditions: [{ type: 'user_action', value: 'click' }]
+      };
+      setSteps([...steps, newStep]);
+      showToast('Step added successfully!');
+    }
   };
   
   const handleAddAction = (step, context = 'enter') => {
+    if (!step) return;
     setSelectedStep(step);
     setShowActionModal(true);
   };
   
   const handleActionAdded = (actionData) => {
-    if (selectedStep) {
+    if (selectedStep && actionData) {
       const updatedSteps = steps.map(s => 
-        s.id === selectedStep.id 
-          ? { ...s, actions: [...s.actions, actionData.id] }
+        s && s.id === selectedStep.id 
+          ? { ...s, actions: [...(s.actions || []), actionData.id] }
           : s
       );
       setSteps(updatedSteps);
-      setSelectedStep(updatedSteps.find(s => s.id === selectedStep.id));
+      setSelectedStep(updatedSteps.find(s => s && s.id === selectedStep.id));
       showToast('Action added successfully!');
     }
   };
   
   const handleDeleteAction = (step, actionIndex) => {
+    if (!step) return;
     const updatedSteps = steps.map(s => 
-      s.id === step.id 
-        ? { ...s, actions: s.actions.filter((_, i) => i !== actionIndex) }
+      s && s.id === step.id 
+        ? { ...s, actions: (s.actions || []).filter((_, i) => i !== actionIndex) }
         : s
     );
     setSteps(updatedSteps);
-    setSelectedStep(updatedSteps.find(s => s.id === step.id));
+    if (selectedStep && selectedStep.id === step.id) {
+      setSelectedStep(updatedSteps.find(s => s && s.id === step.id));
+    }
     showToast('Action removed');
   };
   
@@ -497,29 +556,31 @@ export default function FTUEConfigUI() {
   };
   
   const handleConditionAdded = (condition) => {
-    if (selectedStep) {
+    if (selectedStep && condition) {
       const field = conditionContext === 'entry' ? 'entryConditions' : 'completionConditions';
       const updatedSteps = steps.map(s => 
-        s.id === selectedStep.id 
+        s && s.id === selectedStep.id 
           ? { ...s, [field]: [...(s[field] || []), condition] }
           : s
       );
       setSteps(updatedSteps);
-      setSelectedStep(updatedSteps.find(s => s.id === selectedStep.id));
+      setSelectedStep(updatedSteps.find(s => s && s.id === selectedStep.id));
       showToast('Condition added successfully!');
     }
   };
   
   const handleStepUpdate = (updatedStep) => {
-    const updatedSteps = steps.map(s => s.id === updatedStep.id ? updatedStep : s);
+    if (!updatedStep) return;
+    const updatedSteps = steps.map(s => s && s.id === updatedStep.id ? updatedStep : s);
     setSteps(updatedSteps);
     setSelectedStep(updatedStep);
   };
   
   const handleDeleteStep = (step) => {
-    if (window.confirm(`Delete step "${step.name}"?`)) {
-      setSteps(steps.filter(s => s.id !== step.id));
-      if (selectedStep?.id === step.id) {
+    if (!step) return;
+    if (window.confirm(`Delete step "${step.name || 'Unnamed'}"?`)) {
+      setSteps(steps.filter(s => s && s.id !== step.id));
+      if (selectedStep && selectedStep.id === step.id) {
         setSelectedStep(null);
       }
       showToast('Step deleted');
@@ -533,7 +594,7 @@ export default function FTUEConfigUI() {
   const handlePublish = () => {
     if (window.confirm('Publish this flow? It will be available to all users.')) {
       if (selectedFlow) {
-        setFlows(flows.map(f => f.id === selectedFlow.id ? { ...f, status: 'active' } : f));
+        setFlows(flows.map(f => f && f.id === selectedFlow.id ? { ...f, status: 'active' } : f));
       }
       showToast('Flow published successfully!', 'success');
     }
@@ -545,9 +606,9 @@ export default function FTUEConfigUI() {
   
   const handleFlowNameChange = (name) => {
     if (selectedFlow) {
-      const updated = { ...selectedFlow, name };
+      const updated = { ...selectedFlow, name: name || 'New Flow' };
       setSelectedFlow(updated);
-      setFlows(flows.map(f => f.id === updated.id ? updated : f));
+      setFlows(flows.map(f => f && f.id === updated.id ? updated : f));
     }
   };
   
@@ -592,7 +653,7 @@ export default function FTUEConfigUI() {
         <div className="flex items-center gap-4">
           <button onClick={() => setView('dashboard')} className="p-2 hover:bg-gray-100 rounded-lg"><ChevronRight size={20} className="rotate-180" /></button>
           <div>
-            <input type="text" value={selectedFlow?.name || "New Flow"} onChange={(e) => handleFlowNameChange(e.target.value)} className="text-lg font-semibold bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-1" />
+            <input type="text" value={(selectedFlow && selectedFlow.name) || "New Flow"} onChange={(e) => handleFlowNameChange(e.target.value)} className="text-lg font-semibold bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-1" />
             <div className="flex items-center gap-2 text-sm text-gray-500"><span>Flow #{selectedFlow?.legacy || '?'}</span><span>•</span><span>{steps.length} steps</span></div>
           </div>
         </div>
@@ -624,9 +685,23 @@ export default function FTUEConfigUI() {
             <div className="px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm font-medium flex items-center gap-2"><Play size={14} />Flow Start</div>
             <div className="w-0.5 h-8 bg-gray-300" />
             {steps.map((step, index) => (
-              <React.Fragment key={step.id}>
-                <StepNode step={step} selected={selectedStep?.id === step.id} onClick={() => setSelectedStep(step)} onDelete={handleDeleteStep} />
-                {index < steps.length - 1 && (<><div className="w-0.5 h-4 bg-gray-300" /><ArrowRight size={16} className="text-gray-400 rotate-90" /><div className="w-0.5 h-4 bg-gray-300" /></>)}
+              <React.Fragment key={step?.id || index}>
+                {step && (
+                  <>
+                    <StepNode 
+                      step={step} 
+                      selected={selectedStep?.id === step.id} 
+                      onClick={() => setSelectedStep(step)} 
+                      onDelete={handleDeleteStep}
+                      onDragStart={handleDragStart}
+                      onDragOver={handleDragOver}
+                      onDrop={handleDrop}
+                      index={index}
+                      isDragging={draggedIndex === index}
+                    />
+                    {index < steps.length - 1 && (<><div className="w-0.5 h-4 bg-gray-300" /><ArrowRight size={16} className="text-gray-400 rotate-90" /><div className="w-0.5 h-4 bg-gray-300" /></>)}
+                  </>
+                )}
               </React.Fragment>
             ))}
             <div className="w-0.5 h-8 bg-gray-300" />
