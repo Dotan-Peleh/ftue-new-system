@@ -203,7 +203,12 @@ const ConditionBuilderModal = ({ onClose, onAdd, context }) => {
   const [value, setValue] = useState('1');
   const [selectedFeature, setSelectedFeature] = useState('');
   
-  const features = ['Disco', 'Cascade', 'Missions', 'Mode Boost', 'Race', 'Flowers', 'Recipes', 'Power Ups', 'Daily Challenges', 'Events'];
+  // Real feature names from the system
+  const features = [
+    'None', 'Disco', 'Cascade', 'Missions', 'Mode Boost', 'Race', 
+    'Flowers', 'Recipes', 'Power Ups', 'Daily Challenges', 'Events', 
+    'TimedBoardTask', 'FusionFair', 'Reel', 'Oyster', 'Flowers', 'HarvestSystem'
+  ];
   
   const handleAdd = () => {
     if (onAdd) {
@@ -354,7 +359,19 @@ const ActionDetailsModal = ({ onClose, action, step, onUpdate }) => {
                   <label className="block text-xs font-medium text-gray-500 mb-1">Type</label>
                   <select
                     value={actionData.Type || ''}
-                    onChange={(e) => setActionData({ ...actionData, Type: e.target.value })}
+                    onChange={(e) => {
+                      const newType = e.target.value;
+                      // Reset action data when type changes, but preserve Type and Target
+                      setActionData({ 
+                        Type: newType, 
+                        Target: actionData.Target || 'Null',
+                        // Clear type-specific fields when changing type
+                        ...(newType === 'ShowDialog' ? {} : { TargetDialog: null }),
+                        ...(newType === 'ShowTooltip' && actionData.Target === 'Character' ? {} : { TargetCharacter: null }),
+                        ...(newType === 'ShowCutscene' ? {} : { TypeShowCutScene: null }),
+                        ...(newType === 'WaitForAnimationComplete' ? {} : { TargetAwaitedAnimation: null })
+                      });
+                    }}
                     className="w-full px-3 py-2 border rounded-lg"
                   >
                     <option value="">Select Type</option>
@@ -367,7 +384,20 @@ const ActionDetailsModal = ({ onClose, action, step, onUpdate }) => {
                   <label className="block text-xs font-medium text-gray-500 mb-1">Target</label>
                   <select
                     value={actionData.Target || 'Null'}
-                    onChange={(e) => setActionData({ ...actionData, Target: e.target.value })}
+                    onChange={(e) => {
+                      const newTarget = e.target.value;
+                      setActionData({ 
+                        ...actionData, 
+                        Target: newTarget,
+                        // Clear target-specific fields when changing target
+                        ...(newTarget === 'BoardItem' ? {} : { TargetBoardItem: null }),
+                        ...(newTarget === 'BoardTask' ? {} : { TargetBoardTask: null }),
+                        ...(newTarget === 'ScapeTask' || newTarget === 'ScapeTaskMapTooltip' ? {} : { TargetScapeTask: null }),
+                        ...(newTarget === 'Character' ? {} : { TargetCharacter: null }),
+                        ...(newTarget === 'Group' ? {} : { TargetGroup: null }),
+                        ...(newTarget === 'BoardItems' ? {} : { TargetBoardItems: null })
+                      });
+                    }}
                     className="w-full px-3 py-2 border rounded-lg"
                   >
                     {targetTypes.map(target => (
@@ -409,8 +439,8 @@ const ActionDetailsModal = ({ onClose, action, step, onUpdate }) => {
                 </div>
               )}
               
-              {/* TargetBoardItem */}
-              {actionData.TargetBoardItem && (
+              {/* TargetBoardItem - Show for BoardItem target or if already exists */}
+              {(actionData.Target === 'BoardItem' || actionData.TargetBoardItem) && (
                 <div className="p-3 bg-gray-50 rounded-lg">
                   <label className="block text-xs font-medium text-gray-500 mb-2">Board Item</label>
                   <div className="grid grid-cols-3 gap-2">
@@ -418,14 +448,16 @@ const ActionDetailsModal = ({ onClose, action, step, onUpdate }) => {
                       <label className="block text-xs text-gray-400 mb-1">Item ID</label>
                       <input
                         type="number"
-                        value={actionData.TargetBoardItem.ItemId || ''}
+                        value={actionData.TargetBoardItem?.ItemId || ''}
                         onChange={(e) => setActionData({
                           ...actionData,
                           TargetBoardItem: {
-                            ...actionData.TargetBoardItem,
-                            ItemId: parseInt(e.target.value) || 0
+                            ...(actionData.TargetBoardItem || {}),
+                            ItemId: parseInt(e.target.value) || 0,
+                            Position: actionData.TargetBoardItem?.Position || { x: -1, y: -1 }
                           }
                         })}
+                        placeholder="e.g., 399, 692, 504"
                         className="w-full px-2 py-1 border rounded text-sm"
                       />
                     </div>
@@ -433,13 +465,13 @@ const ActionDetailsModal = ({ onClose, action, step, onUpdate }) => {
                       <label className="block text-xs text-gray-400 mb-1">Position X</label>
                       <input
                         type="number"
-                        value={actionData.TargetBoardItem.Position?.x ?? -1}
+                        value={actionData.TargetBoardItem?.Position?.x ?? -1}
                         onChange={(e) => setActionData({
                           ...actionData,
                           TargetBoardItem: {
-                            ...actionData.TargetBoardItem,
+                            ...(actionData.TargetBoardItem || { ItemId: 0 }),
                             Position: {
-                              ...(actionData.TargetBoardItem.Position || {}),
+                              ...(actionData.TargetBoardItem?.Position || {}),
                               x: parseInt(e.target.value) || -1
                             }
                           }
@@ -451,13 +483,13 @@ const ActionDetailsModal = ({ onClose, action, step, onUpdate }) => {
                       <label className="block text-xs text-gray-400 mb-1">Position Y</label>
                       <input
                         type="number"
-                        value={actionData.TargetBoardItem.Position?.y ?? -1}
+                        value={actionData.TargetBoardItem?.Position?.y ?? -1}
                         onChange={(e) => setActionData({
                           ...actionData,
                           TargetBoardItem: {
-                            ...actionData.TargetBoardItem,
+                            ...(actionData.TargetBoardItem || { ItemId: 0 }),
                             Position: {
-                              ...(actionData.TargetBoardItem.Position || {}),
+                              ...(actionData.TargetBoardItem?.Position || {}),
                               y: parseInt(e.target.value) || -1
                             }
                           }
@@ -466,6 +498,132 @@ const ActionDetailsModal = ({ onClose, action, step, onUpdate }) => {
                       />
                     </div>
                   </div>
+                </div>
+              )}
+              
+              {/* TargetBoardTask - Show for BoardTask target */}
+              {(actionData.Target === 'BoardTask' || actionData.TargetBoardTask) && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Board Task ID</label>
+                  <input
+                    type="number"
+                    value={actionData.TargetBoardTask?.BoardTaskId || ''}
+                    onChange={(e) => setActionData({
+                      ...actionData,
+                      TargetBoardTask: { BoardTaskId: parseInt(e.target.value) || 0 }
+                    })}
+                    placeholder="e.g., 0, 1, 2"
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+              )}
+              
+              {/* TargetScapeTask - Show for ScapeTask target */}
+              {(actionData.Target === 'ScapeTask' || actionData.TargetScapeTask || actionData.Target === 'ScapeTaskMapTooltip') && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Scape Task ID</label>
+                  <input
+                    type="number"
+                    value={actionData.TargetScapeTask?.ScapeTaskId || ''}
+                    onChange={(e) => setActionData({
+                      ...actionData,
+                      TargetScapeTask: { ScapeTaskId: parseInt(e.target.value) || 0 }
+                    })}
+                    placeholder="e.g., 1, 2"
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+              )}
+              
+              {/* TargetInfoText - Show for ShowTooltip with Character */}
+              {(actionData.Type === 'ShowTooltip' && actionData.TargetInfoText) && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Info Text ID</label>
+                  <input
+                    type="text"
+                    value={actionData.TargetInfoText?.TextId || ''}
+                    onChange={(e) => setActionData({
+                      ...actionData,
+                      TargetInfoText: { TextId: e.target.value }
+                    })}
+                    placeholder="e.g., C1b_L1, C1b_L2, FTUE_test_29"
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+              )}
+              
+              {/* TargetGroup - Show for Group target */}
+              {(actionData.Target === 'Group' || actionData.TargetGroup) && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Group Name</label>
+                  <input
+                    type="text"
+                    value={actionData.TargetGroup?.GroupName || ''}
+                    onChange={(e) => setActionData({
+                      ...actionData,
+                      TargetGroup: { GroupName: e.target.value }
+                    })}
+                    placeholder="e.g., BoardTasksAutoScroll"
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+              )}
+              
+              {/* TargetPopup - Show for ShowTargetPopup */}
+              {(actionData.Type === 'ShowTargetPopup' || actionData.TargetPopup) && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Popup Type</label>
+                  <select
+                    value={actionData.TargetPopup?.GamePopupType || ''}
+                    onChange={(e) => setActionData({
+                      ...actionData,
+                      TargetPopup: { GamePopupType: e.target.value }
+                    })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  >
+                    <option value="">Select Popup</option>
+                    <option>TutorialFlowersPopup</option>
+                    <option>TutorialFusionFairPopup</option>
+                  </select>
+                </div>
+              )}
+              
+              {/* TypeShowCutScene - Show for ShowCutscene */}
+              {(actionData.Type === 'ShowCutscene' || actionData.TypeShowCutScene) && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Cutscene ID</label>
+                  <input
+                    type="text"
+                    value={actionData.TypeShowCutScene?.CutsceneId || ''}
+                    onChange={(e) => setActionData({
+                      ...actionData,
+                      TypeShowCutScene: { CutsceneId: e.target.value }
+                    })}
+                    placeholder="e.g., BridgeAreaStep0Part0"
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+              )}
+              
+              {/* TargetAwaitedAnimation - Show for WaitForAnimationComplete */}
+              {(actionData.Type === 'WaitForAnimationComplete' || actionData.TargetAwaitedAnimation) && (
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <label className="block text-xs font-medium text-gray-500 mb-2">Awaited Animation</label>
+                  <input
+                    type="text"
+                    value={actionData.TargetAwaitedAnimation?.AwaitedAnimations?.[0]?.AwaitedAnimation || ''}
+                    onChange={(e) => setActionData({
+                      ...actionData,
+                      TargetAwaitedAnimation: {
+                        AwaitedAnimations: [{
+                          AwaitedAnimation: e.target.value,
+                          AwaitComplete: false
+                        }]
+                      }
+                    })}
+                    placeholder="e.g., GenerateItem, MergeItem, BoardTaskReady"
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
                 </div>
               )}
               
@@ -612,7 +770,7 @@ const ActionBuilderModal = ({ onClose, onAdd, step, existingAction, actionIndex,
           {selectedAction === 'show_dialog' && (
             <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
               <div><label className="block text-xs font-medium text-gray-500 mb-1">Dialog ID</label><input type="text" value={dialogId} onChange={(e) => setDialogId(e.target.value)} placeholder="e.g., ftue_intro_chris" className="w-full px-3 py-2 border rounded-lg" /></div>
-              <div><label className="block text-xs font-medium text-gray-500 mb-1">Character</label><select value={character} onChange={(e) => setCharacter(e.target.value)} className="w-full px-3 py-2 border rounded-lg"><option>chris</option><option>kara</option><option>benny</option><option>leslie</option></select></div>
+              <div><label className="block text-xs font-medium text-gray-500 mb-1">Character</label><select value={character} onChange={(e) => setCharacter(e.target.value)} className="w-full px-3 py-2 border rounded-lg"><option>Chris</option><option>Kara</option><option>Benny</option><option>Leslie</option><option>Mateo</option><option>Tyrell</option></select></div>
               <div className="flex items-center gap-2"><input type="checkbox" id="blockInput" checked={blockInput} onChange={(e) => setBlockInput(e.target.checked)} className="rounded" /><label htmlFor="blockInput" className="text-sm">Block input while showing</label></div>
             </div>
           )}
