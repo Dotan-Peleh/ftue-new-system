@@ -974,7 +974,31 @@ const FlowPreview = ({ steps, onClose }) => {
   const [idleHelpActive, setIdleHelpActive] = useState(false);
   const [addedItems, setAddedItems] = useState(new Map());
   
-  const currentStep = steps[currentStepIndex];
+  // Safety checks for steps array
+  if (!steps || !Array.isArray(steps) || steps.length === 0) {
+    return (
+      <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50">
+        <div className="bg-white rounded-xl shadow-2xl w-[90vw] h-[90vh] max-w-6xl flex flex-col overflow-hidden">
+          <div className="p-4 border-b flex items-center justify-between bg-gray-50">
+            <div>
+              <h3 className="font-semibold text-lg">Flow Preview</h3>
+              <p className="text-sm text-gray-500">No steps to preview</p>
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded"><X size={20} /></button>
+          </div>
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <div className="text-4xl mb-4">📝</div>
+              <h3 className="text-lg font-semibold mb-2">No Steps Configured</h3>
+              <p className="text-gray-600">Add steps to your flow to see the preview.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  const currentStep = (currentStepIndex >= 0 && currentStepIndex < steps.length) ? steps[currentStepIndex] : null;
   const isLastStep = currentStepIndex >= steps.length - 1;
   
   useEffect(() => {
@@ -989,9 +1013,10 @@ const FlowPreview = ({ steps, onClose }) => {
     setWaitingForAnimation(null);
     setIdleHelpActive(false);
     
-    if (currentStep && currentStep.actions && currentStep.actions.length > 0) {
+    if (currentStep && Array.isArray(currentStep.actions) && currentStep.actions.length > 0) {
       // Process actions with proper delays
       currentStep.actions.forEach((action, i) => {
+        if (!action) return; // Skip null/undefined actions
         // Handle both string and object formats
         let actionObj;
         if (typeof action === 'string') {
@@ -1310,8 +1335,10 @@ const FlowPreview = ({ steps, onClose }) => {
   const configuredCharacters = new Map();
   
   steps.forEach(step => {
-    (step.actions || []).forEach(action => {
-      const actionObj = typeof action === 'object' ? action : { Type: action, Target: 'Null' };
+    if (!step || !Array.isArray(step.actions)) return;
+    step.actions.forEach(action => {
+      if (action === null || action === undefined) return;
+      const actionObj = (action !== null && typeof action === 'object') ? action : { Type: action, Target: 'Null' };
       
       // TargetBoardItem (single item)
       if (actionObj.TargetBoardItem && actionObj.TargetBoardItem.ItemId) {
@@ -1442,14 +1469,18 @@ const FlowPreview = ({ steps, onClose }) => {
                   const animationKey = `BoardItem-${item.x}-${item.y}`;
                   
                   // Check if this item is highlighted
-                  const highlightObj = typeof highlightedElement === 'object' ? highlightedElement : { target: highlightedElement };
-                  const isHighlighted = 
+                  // Note: typeof null === 'object' in JavaScript, so we need explicit null check
+                  const highlightObj = (highlightedElement !== null && highlightedElement !== undefined && typeof highlightedElement === 'object') 
+                    ? highlightedElement 
+                    : (highlightedElement ? { target: highlightedElement } : null);
+                  const isHighlighted = highlightObj && highlightObj.target && (
                     highlightObj.target === 'BoardItem' || 
                     highlightObj.target === item.id || 
                     highlightObj.target === itemKey ||
                     (highlightObj.target === 'BoardActiveGenerator' && item.isGenerator) ||
                     highlightObj.target === 'BoardScreen' ||
-                    highlightObj.target === 'All';
+                    highlightObj.target === 'All'
+                  );
                   
                   // Check for finger animations
                   const fingerAnimation = activeAnimations[animationKey] || 
@@ -1630,7 +1661,7 @@ const FlowPreview = ({ steps, onClose }) => {
               </div>
               <div className={`flex items-center gap-2 ${highlightedElement ? 'text-green-600' : 'text-gray-400'}`}>
                 <div className={`w-2 h-2 rounded-full ${highlightedElement ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                Highlight {highlightedElement ? (typeof highlightedElement === 'object' ? highlightedElement.target : highlightedElement) : 'None'}
+                Highlight {highlightedElement ? (highlightedElement !== null && typeof highlightedElement === 'object' && highlightedElement.target ? highlightedElement.target : (typeof highlightedElement === 'string' ? highlightedElement : 'Unknown')) : 'None'}
               </div>
               <div className={`flex items-center gap-2 ${shaded ? 'text-green-600' : 'text-gray-400'}`}>
                 <div className={`w-2 h-2 rounded-full ${shaded ? 'bg-green-500' : 'bg-gray-300'}`}></div>
