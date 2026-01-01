@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Settings, Play, Save, Eye, Check, X, ChevronRight, ChevronDown, GripVertical, Trash2, Copy, ToggleLeft, ToggleRight, Search, Filter, Clock, Users, Zap, MessageSquare, Hand, Monitor, Camera, BarChart3, ArrowRight, Edit3, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Plus, Settings, Play, Save, Eye, Check, X, ChevronRight, ChevronDown, GripVertical, Trash2, Copy, ToggleLeft, ToggleRight, Search, Filter, Clock, Users, Zap, MessageSquare, Hand, Monitor, Camera, BarChart3, ArrowRight, Edit3, AlertCircle, CheckCircle2, FileText } from 'lucide-react';
 
 const colors = {
   primary: '#1E3A5F', secondary: '#2E7D32', accent: '#FF6B00', 
@@ -272,6 +272,265 @@ const ConditionBuilderModal = ({ onClose, onAdd, context }) => {
   );
 };
 
+const ActionDetailsModal = ({ onClose, action, step, onUpdate }) => {
+  const [actionData, setActionData] = useState(() => {
+    // If action is a string, convert to object format
+    if (typeof action === 'string') {
+      return { Type: action, Target: 'Null' };
+    }
+    // If action is already an object, use it
+    return action || { Type: 'LockUIElement', Target: 'Null' };
+  });
+  const [jsonView, setJsonView] = useState(false);
+  
+  const handleSave = () => {
+    if (onUpdate && step) {
+      // Find the action index in step.actions
+      const actionIndex = step.actions?.findIndex(a => 
+        (typeof a === 'string' && a === action) || 
+        (typeof a === 'object' && JSON.stringify(a) === JSON.stringify(action))
+      );
+      
+      if (actionIndex !== undefined && actionIndex >= 0) {
+        const updatedActions = [...(step.actions || [])];
+        updatedActions[actionIndex] = actionData;
+        onUpdate({ ...step, actions: updatedActions });
+      }
+    }
+    onClose();
+  };
+  
+  const actionTypes = [
+    'LockUIElement', 'UnLockUIElement', 'ShowDialog', 'HideDialog', 'ShowTooltip',
+    'HighlightElement', 'FadeIn', 'Tap', 'Merge', 'ShowCutscene', 'WaitForAnimationComplete',
+    'WaitForBoardTaskReady', 'ShowUIElement', 'HideUIElement', 'IdleHelp', 'LockBoardItemDrag',
+    'UnLockBoardItemDrag', 'WaitForCollectItem', 'ShowTargetPopup', 'AddItemOnBoard',
+    'ShowSimpleProceedText', 'CenteringScapesTooltip', 'LockUIGroup', 'UnLockUIGroup',
+    'DtgMainTutorialFinished', 'ExtendTutorialStepData'
+  ];
+  
+  const targetTypes = [
+    'Null', 'All', 'BoardScreen', 'ScapeScreen', 'DialogSkip', 'DialogClose', 'DialogProceed',
+    'BoardItem', 'BoardItems', 'BoardTask', 'Character', 'Dialog', 'ScapeTask',
+    'HarvestSystem', 'RewardCenter', 'BoardModePlus', 'FusionFairGoToBoard',
+    'FusionFairBoardTaskItemInfo', 'FusionFairInfoPopupClose', 'TutorialFlowersPopupSimpleProceed',
+    'TutorialFusionFairPopupSimpleProceed', 'Group'
+  ];
+  
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-xl w-[800px] max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="p-4 border-b flex items-center justify-between">
+          <h3 className="font-semibold text-lg">Action Details</h3>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setJsonView(!jsonView)} className="px-3 py-1 text-sm border rounded hover:bg-gray-100">
+              {jsonView ? 'Form View' : 'JSON View'}
+            </button>
+            <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X size={20} /></button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4">
+          {jsonView ? (
+            <div className="space-y-4">
+              <label className="block text-sm font-medium text-gray-700">Action JSON</label>
+              <textarea
+                value={JSON.stringify(actionData, null, 2)}
+                onChange={(e) => {
+                  try {
+                    const parsed = JSON.parse(e.target.value);
+                    setActionData(parsed);
+                  } catch (err) {
+                    // Invalid JSON, don't update
+                  }
+                }}
+                className="w-full h-96 p-3 border rounded-lg font-mono text-sm"
+                spellCheck={false}
+              />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Type</label>
+                  <select
+                    value={actionData.Type || ''}
+                    onChange={(e) => setActionData({ ...actionData, Type: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  >
+                    <option value="">Select Type</option>
+                    {actionTypes.map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Target</label>
+                  <select
+                    value={actionData.Target || 'Null'}
+                    onChange={(e) => setActionData({ ...actionData, Target: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  >
+                    {targetTypes.map(target => (
+                      <option key={target} value={target}>{target}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              {/* TargetDialog */}
+              {actionData.TargetDialog && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Dialog ID</label>
+                  <input
+                    type="number"
+                    value={actionData.TargetDialog.DialogId || ''}
+                    onChange={(e) => setActionData({
+                      ...actionData,
+                      TargetDialog: { DialogId: parseInt(e.target.value) || 0 }
+                    })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+              )}
+              
+              {/* TargetCharacter */}
+              {actionData.TargetCharacter && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Character ID</label>
+                  <input
+                    type="text"
+                    value={actionData.TargetCharacter.CharacterId || ''}
+                    onChange={(e) => setActionData({
+                      ...actionData,
+                      TargetCharacter: { CharacterId: e.target.value }
+                    })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+              )}
+              
+              {/* TargetBoardItem */}
+              {actionData.TargetBoardItem && (
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <label className="block text-xs font-medium text-gray-500 mb-2">Board Item</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Item ID</label>
+                      <input
+                        type="number"
+                        value={actionData.TargetBoardItem.ItemId || ''}
+                        onChange={(e) => setActionData({
+                          ...actionData,
+                          TargetBoardItem: {
+                            ...actionData.TargetBoardItem,
+                            ItemId: parseInt(e.target.value) || 0
+                          }
+                        })}
+                        className="w-full px-2 py-1 border rounded text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Position X</label>
+                      <input
+                        type="number"
+                        value={actionData.TargetBoardItem.Position?.x ?? -1}
+                        onChange={(e) => setActionData({
+                          ...actionData,
+                          TargetBoardItem: {
+                            ...actionData.TargetBoardItem,
+                            Position: {
+                              ...(actionData.TargetBoardItem.Position || {}),
+                              x: parseInt(e.target.value) || -1
+                            }
+                          }
+                        })}
+                        className="w-full px-2 py-1 border rounded text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Position Y</label>
+                      <input
+                        type="number"
+                        value={actionData.TargetBoardItem.Position?.y ?? -1}
+                        onChange={(e) => setActionData({
+                          ...actionData,
+                          TargetBoardItem: {
+                            ...actionData.TargetBoardItem,
+                            Position: {
+                              ...(actionData.TargetBoardItem.Position || {}),
+                              y: parseInt(e.target.value) || -1
+                            }
+                          }
+                        })}
+                        className="w-full px-2 py-1 border rounded text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* TypeShowTooltip */}
+              {actionData.TypeShowTooltip && (
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <label className="block text-xs font-medium text-gray-500 mb-2">Tooltip Settings</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Type</label>
+                      <select
+                        value={actionData.TypeShowTooltip.Type || 'Tap'}
+                        onChange={(e) => setActionData({
+                          ...actionData,
+                          TypeShowTooltip: { ...actionData.TypeShowTooltip, Type: e.target.value }
+                        })}
+                        className="w-full px-2 py-1 border rounded text-sm"
+                      >
+                        <option>Tap</option>
+                        <option>Info</option>
+                        <option>DragAndDrop</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Position</label>
+                      <select
+                        value={actionData.TypeShowTooltip.InfoMessagePosition || 'Bottom'}
+                        onChange={(e) => setActionData({
+                          ...actionData,
+                          TypeShowTooltip: { ...actionData.TypeShowTooltip, InfoMessagePosition: e.target.value }
+                        })}
+                        className="w-full px-2 py-1 border rounded text-sm"
+                      >
+                        <option>Bottom</option>
+                        <option>Top</option>
+                        <option>Middle</option>
+                        <option>TopLeft</option>
+                        <option>BottomRight</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Show full JSON for reference */}
+              <details className="mt-4">
+                <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-800">View Full JSON</summary>
+                <pre className="mt-2 p-3 bg-gray-100 rounded text-xs overflow-auto max-h-60">
+                  {JSON.stringify(actionData, null, 2)}
+                </pre>
+              </details>
+            </div>
+          )}
+        </div>
+        <div className="p-4 border-t bg-gray-50 flex justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-lg">Cancel</button>
+          <button onClick={handleSave} className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2">
+            <Save size={16} />Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ActionBuilderModal = ({ onClose, onAdd, step, existingAction, actionIndex, isEdit }) => {
   // Initialize with existing action data if editing
   const getInitialAction = () => {
@@ -507,6 +766,7 @@ export default function FTUEConfigUI() {
   const [selectedStep, setSelectedStep] = useState(null);
   const [showConditionModal, setShowConditionModal] = useState(false);
   const [showActionModal, setShowActionModal] = useState(false);
+  const [showActionDetailsModal, setShowActionDetailsModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [filterTab, setFilterTab] = useState('all');
@@ -613,7 +873,19 @@ export default function FTUEConfigUI() {
     setSelectedStep(step);
     setEditingActionIndex(actionIndex);
     setEditingAction(action);
-    setShowActionModal(true);
+    setShowActionDetailsModal(true);
+  };
+  
+  const handleActionDetailsUpdate = (updatedStep) => {
+    if (updatedStep) {
+      const updatedSteps = steps.map(s => s && s.id === updatedStep.id ? updatedStep : s);
+      setSteps(updatedSteps);
+      setSelectedStep(updatedStep);
+      setShowActionDetailsModal(false);
+      setEditingActionIndex(null);
+      setEditingAction(null);
+      showToast('Action updated successfully!');
+    }
   };
   
   const handleActionAdded = (actionData) => {
@@ -875,6 +1147,18 @@ export default function FTUEConfigUI() {
         actionIndex={editingActionIndex}
         isEdit={editingActionIndex !== null && editingActionIndex !== undefined}
       />}
+      {showActionDetailsModal && selectedStep && editingAction !== null && (
+        <ActionDetailsModal
+          onClose={() => {
+            setShowActionDetailsModal(false);
+            setEditingActionIndex(null);
+            setEditingAction(null);
+          }}
+          action={editingAction}
+          step={selectedStep}
+          onUpdate={handleActionDetailsUpdate}
+        />
+      )}
       {showSettingsModal && <SettingsModal onClose={() => {
         setShowSettingsModal(false);
       }} flow={selectedFlow || {}} onUpdate={(settings) => {
